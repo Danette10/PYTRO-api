@@ -63,7 +63,8 @@ def take_and_send_screenshot():
 
 if __name__ == '__main__':
     try:
-        sio.connect('http://127.0.0.1:5000')
+        # sio.connect('http://127.0.0.1:5000')
+        sio.connect('http://192.168.220.129:5000')
         sio.wait()
     except KeyboardInterrupt:
         print("Arrêt du client sur demande de l'utilisateur.")
