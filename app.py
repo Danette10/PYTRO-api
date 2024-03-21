@@ -78,7 +78,8 @@ def handle_screenshot(data):
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    clients.pop(request.sid, None)
+    print(f"Client {clients.get(request.sid)} disconnected.")
+    pass
 
 
 if __name__ == '__main__':
