@@ -35,20 +35,25 @@ def get_clients():
 
 
 def list_screenshots(directory):
-    return [f"{directory}/{file}" for file in os.listdir(directory) if os.path.isfile(os.path.join(directory, file))]
+    if os.path.exists(directory):
+        return [f"{directory}/{file}" for file in os.listdir(directory) if
+                os.path.isfile(os.path.join(directory, file))]
+    return []
 
 
 @app.route('/api/v1/screenshot', methods=['GET'])
 def get_screenshots():
     screenshots = [screenshot for client_ip in clients.values() for screenshot in
                    list_screenshots(f"screenshots/{client_ip}")]
-    return jsonify({'status': 'success', 'screenshots': screenshots}), 200
+    return jsonify(
+        {'status': 'success', 'screenshots': screenshots if screenshots else "No screenshots available."}), 200
 
 
 @app.route('/api/v1/screenshot/<ip>', methods=['GET'])
 def get_screenshots_by_ip(ip):
     screenshots = list_screenshots(f"screenshots/{ip}")
-    return jsonify({'status': 'success', 'screenshots': screenshots}), 200
+    return jsonify({'status': 'success',
+                    'screenshots': screenshots if screenshots else "No screenshots available for this IP."}), 200
 
 
 @app.route('/api/v1/screenshot/<ip>/<screenshot>', methods=['GET'])
@@ -57,7 +62,7 @@ def get_screenshot(ip, screenshot):
     if os.path.exists(screenshot_path):
         return send_from_directory('screenshots', f"{ip}/{screenshot}")
     else:
-        return jsonify({'status': 'error', 'message': 'Capture d\'écran non trouvée.'}), 404
+        return jsonify({'status': 'error', 'message': 'Screenshot not found.'}), 404
 
 
 @socketio.on('connect')
@@ -78,8 +83,7 @@ def handle_screenshot(data):
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f"Client {clients.get(request.sid)} disconnected.")
-    pass
+    print(f"Client {clients[request.sid]} disconnected.")
 
 
 if __name__ == '__main__':
