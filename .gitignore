@@ -2,3 +2,5 @@
 .git
 screenshots
 /.venv/
+
+__pycache__/
