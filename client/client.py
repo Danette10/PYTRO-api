@@ -66,9 +66,20 @@ def take_and_send_screenshot():
         log_event(f"Error taking or sending the screenshot: {e}")
 
 
+def attempt_reconnect():
+    while not sio.connected:
+        try:
+            log_event("Attempting to reconnect...")
+            sio.connect('http://192.168.18.150:5000')
+            time.sleep(5)
+        except socketio.exceptions.ConnectionError:
+            log_event("Reconnect failed. Trying again in 5 seconds...")
+            time.sleep(5)
+
+
 def main():
+    attempt_reconnect()
     try:
-        sio.connect('http://192.168.220.129:5000')
         sio.wait()
     except KeyboardInterrupt:
         log_event("Client stopped by user request.")

