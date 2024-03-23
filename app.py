@@ -52,9 +52,9 @@ def list_screenshots(directory):
 
 @app.route('/api/v1/screenshot', methods=['GET'])
 def get_screenshots():
-    screenshots = [screenshot for ip in clients.keys() for screenshot in list_screenshots(f"screenshots/{ip}")]
-    return jsonify(
-        {'status': 'success', 'screenshots': screenshots if screenshots else "No screenshots available."}), 200
+    ips = [ip for ip in os.listdir('screenshots') if os.path.isdir(f"screenshots/{ip}")]
+    screenshots = {ip: list_screenshots(f"screenshots/{ip}") for ip in ips}
+    return jsonify({'status': 'success', 'screenshots': screenshots}), 200
 
 
 @app.route('/api/v1/screenshot/<ip>', methods=['GET'])
