@@ -1,8 +1,9 @@
-import io
-import socketio
-import pyautogui
 import base64
+import io
 import time
+
+import pyautogui
+import socketio
 from PIL import Image
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2)
@@ -70,7 +71,7 @@ def attempt_reconnect():
     while not sio.connected:
         try:
             log_event("Attempting to reconnect...")
-            sio.connect('http://192.168.18.150:5000')
+            sio.connect('http://127.0.0.1:5000')
             time.sleep(5)
         except socketio.exceptions.ConnectionError:
             log_event("Reconnect failed. Trying again in 5 seconds...")

