@@ -15,27 +15,27 @@ def log_event(message):
 
 @sio.event
 def connect():
-    log_event("Connection opened")
+    log_event("Connection réussie")
 
 
 @sio.event
 def connect_error(data):
-    log_event(f"Connection failed: {data}")
+    log_event(f"Connection echouée: {data}")
 
 
 @sio.event
 def disconnect():
-    log_event("Connection closed")
+    log_event("Connection perdue")
 
 
 @sio.event
 def command(data):
     command = data.get('command')
     if command == 'screenshot':
-        log_event("Screenshot requested")
+        log_event("Commande de capture d'écran reçue")
         take_and_send_screenshot()
     else:
-        log_event(f"Unrecognized command: {command}")
+        log_event(f"Commande non reconnue: {command}")
 
 
 def resize_image(image_bytes_io, base_width=1300):
@@ -59,22 +59,22 @@ def take_and_send_screenshot():
         screenshot_encoded = base64.b64encode(resized_screenshot.getvalue()).decode()
 
         if not sio.connected:
-            log_event("Waiting for connection to send the screenshot...")
+            log_event("En attente de connexion pour envoyer la capture d'écran...")
             time.sleep(1)
         sio.emit('screenshot_response', {'screenshot': screenshot_encoded})
-        log_event("Screenshot sent")
+        log_event("Capture d'écran envoyée")
     except Exception as e:
-        log_event(f"Error taking or sending the screenshot: {e}")
+        log_event(f"Echec de la capture d'écran: {e}")
 
 
 def attempt_reconnect():
     while not sio.connected:
         try:
-            log_event("Attempting to reconnect...")
+            log_event("Tentative de reconnexion...")
             sio.connect('http://127.0.0.1:5000')
             time.sleep(5)
         except socketio.exceptions.ConnectionError:
-            log_event("Reconnect failed. Trying again in 5 seconds...")
+            log_event("Echec de la reconnexion. Nouvelle tentative dans 5 secondes...")
             time.sleep(5)
 
 
@@ -83,7 +83,7 @@ def main():
     try:
         sio.wait()
     except KeyboardInterrupt:
-        log_event("Client stopped by user request.")
+        log_event("Arrêt du client...")
         sio.disconnect()
 
 

@@ -1,1 +1,2 @@
-from .client import Client
+from .Client import Client
+from .Screenshot import Screenshot
