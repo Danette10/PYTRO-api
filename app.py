@@ -35,7 +35,8 @@ def emit_command_to_client(client_id, command):
     client = Client.query.get(client_id)
     if client and client.status == 'online':
         socketio.emit('command', {'command': command}, room=client.sid)
-        return jsonify({'status': 'success', 'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}), 200
+        return jsonify({'status': 'success',
+                        'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}), 200
     elif client and client.status == 'offline':
         return jsonify({'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}), 400
     else:
@@ -61,7 +62,7 @@ def get_clients():
             'status': client.status,
             'date_created': client.date_created.strftime('%d/%m/%Y à %H:%M:%S'),
             'date_updated': client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')
-         }
+        }
         for client in clients]
     return jsonify({'status': 'success', 'clients': clients_info}), 200
 
