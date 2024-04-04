@@ -1,5 +1,6 @@
 import base64
 import io
+import platform
 import time
 
 import pyautogui
@@ -7,6 +8,12 @@ import socketio
 from PIL import Image
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2)
+
+system_info = {
+    'os': platform.system(),
+    'os_version': platform.version(),
+    'hostname': platform.node()
+}
 
 
 def log_event(message):
@@ -16,6 +23,7 @@ def log_event(message):
 @sio.event
 def connect():
     log_event("Connection réussie")
+    sio.emit('system_info', system_info)
 
 
 @sio.event

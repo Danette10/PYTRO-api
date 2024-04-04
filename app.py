@@ -50,10 +50,19 @@ def get_clients():
     else:
         clients = Client.query.all()
 
-    clients_info = [{'id': client.id, 'name': f'Client {client.id}', 'ip': client.ip, 'status': client.status,
-                     'date_created': client.date_created.strftime('%d/%m/%Y à %H:%M:%S'),
-                     'date_updated': client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')}
-                    for client in clients]
+    clients_info = [
+        {
+            'id': client.id,
+            'name': f'Client {client.id}',
+            'ip': client.ip,
+            'os': client.os,
+            'version': client.os_version,
+            'hostname': client.hostname,
+            'status': client.status,
+            'date_created': client.date_created.strftime('%d/%m/%Y à %H:%M:%S'),
+            'date_updated': client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')
+         }
+        for client in clients]
     return jsonify({'status': 'success', 'clients': clients_info}), 200
 
 
@@ -98,6 +107,19 @@ def handle_connect():
         db.session.add(client)
     db.session.commit()
     print(f"Client {client_ip} en ligne.")
+
+
+@socketio.on('system_info')
+def handle_system_info(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        client.os = data.get('os')
+        client.os_version = data.get('os_version')
+        client.hostname = data.get('hostname')
+        db.session.commit()
+    else:
+        print("Client non trouvé.")
 
 
 @socketio.on('screenshot_response')
