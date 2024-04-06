@@ -79,7 +79,7 @@ def attempt_reconnect():
     while not sio.connected:
         try:
             log_event("Tentative de reconnexion...")
-            sio.connect('http://192.168.18.146:5000')
+            sio.connect('http://127.0.0.1:5000')
             time.sleep(5)
         except socketio.exceptions.ConnectionError:
             log_event("Echec de la reconnexion. Nouvelle tentative dans 5 secondes...")
