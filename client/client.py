@@ -7,7 +7,7 @@ import pyautogui
 import socketio
 from PIL import Image
 
-sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2)
+sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
 system_info = {
     'os': platform.system(),
@@ -79,7 +79,7 @@ def attempt_reconnect():
     while not sio.connected:
         try:
             log_event("Tentative de reconnexion...")
-            sio.connect('http://127.0.0.1:5000')
+            sio.connect('https://127.0.0.1:5000')
             time.sleep(5)
         except socketio.exceptions.ConnectionError:
             log_event("Echec de la reconnexion. Nouvelle tentative dans 5 secondes...")

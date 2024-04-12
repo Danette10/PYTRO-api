@@ -11,6 +11,7 @@
 # Summary
 - [⚠️ DISCLAIMER ⚠️](#-disclaimer-)
 - [Installation](#installation)
+- [Certificat SSL](#certificat-ssl)
 - [Flask-Migrate](#flask-migrate)
   - [Initialization of Flask-Migrate](#initialization-of-flask-migrate)
   - [Migration](#migration)
@@ -27,6 +28,17 @@ Use this software at your own risk.
 # Installation
 ```bash
 pip install -r requirements.txt
+```
+
+# Certificat SSL
+To generate a self-signed certificate, run the following commands:
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+
+To run the server with the certificate, run the following command:
+```bash
+flask run --cert=cert.pem --key=key.pem
 ```
 
 # Flask-Migrate

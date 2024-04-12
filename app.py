@@ -58,7 +58,6 @@ screenshots_model = api.model('Screenshots', {
 client_params = api.parser()
 client_params.add_argument('status', type=str, required=False, help='Filter clients by their status (online/offline).')
 
-
 @auth_ns.route('/')
 class Authenticate(Resource):
     @auth_ns.expect(auth_model)
@@ -189,4 +188,4 @@ def handle_disconnect():
 
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='127.0.0.1', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
