@@ -1,6 +1,7 @@
 .idea
 .git
 screenshots
+audio
 /.venv/
 
 __pycache__/

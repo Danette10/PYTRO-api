@@ -1,2 +1,3 @@
 from .Client import Client
-from .Screenshot import Screenshot
+from .Command import Command
+from .Command import CommandType
