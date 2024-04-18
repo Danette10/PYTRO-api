@@ -91,7 +91,7 @@ class HandleCommand(Resource):
         duration = command_data.get('params')
         client = Client.query.get(client_id)
         if client and client.status == 'online':
-            socketio.emit('command', {'command': command, 'duration': duration}, room=client.sid)
+            socketio.emit('command', {'command': command, 'params': duration}, room=client.sid)
             return {'status': 'success',
                     'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
         elif client and client.status == 'offline':
