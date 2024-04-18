@@ -12,3 +12,4 @@ SQLAlchemy==2.0.29
 PyMySQL==1.1.0
 requests==2.31.0
 websocket-client==1.7.0
+pyaudio==0.2.14

