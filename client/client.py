@@ -12,7 +12,7 @@ from datetime import datetime
 import pyaudio
 import pyautogui
 import socketio
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 from PIL import Image
 from win32crypt import CryptUnprotectData
 
