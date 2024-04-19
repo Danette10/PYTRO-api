@@ -11,3 +11,4 @@ migrations/__pycache__/
 migrations/versions/__pycache__/
 
 *.pem
+/browsers/
