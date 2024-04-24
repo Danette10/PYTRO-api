@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 from datetime import datetime
 
@@ -42,7 +43,7 @@ browser_ns = api.namespace('api/v1/browser', description='Browser data operation
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
     'command': fields.String(required=True, description='Commande à exécuter'),
-    'params': fields.String(required=False, description='Paramètres de la commande')
+    'params': fields.Raw(required=False, description='Paramètres de la commande')
 })
 client_model = api.model('Client', {
     'id': fields.Integer(required=True, description='ID du client'),
@@ -95,7 +96,16 @@ class HandleCommand(Resource):
     def post(self, client_id):
         command_data = request.get_json()
         command = command_data.get('command')
-        duration = command_data.get('params')
+        params = command_data.get('params', {})
+
+        if isinstance(params, str):
+            try:
+                params = json.loads(params)
+            except json.JSONDecodeError:
+                return {'status': 'error', 'message': 'Paramètres mal formés (JSON invalide).'}, 400
+
+        duration = params.get('duration', 10) if isinstance(params, dict) else 10
+
         client = Client.query.get(client_id)
         if client and client.status == 'online':
             socketio.emit('command', {'command': command, 'params': duration}, room=client.sid)
