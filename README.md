@@ -15,6 +15,7 @@
 - [Flask-Migrate](#flask-migrate)
   - [Initialization of Flask-Migrate](#initialization-of-flask-migrate)
   - [Migration](#migration)
+- [Compiling the client](#compiling-the-client)
 
 # ⚠️ DISCLAIMER ⚠️
 This project is developed for educational purposes only. The aim is to understand and demonstrate the security risks associated with RAT (Remote Access Trojan) software and to encourage the development of effective countermeasures. The author(s) of this project do not endorse any malicious use of the materials provided.
@@ -55,6 +56,13 @@ To create a new migration, run the following commands:
 ```bash
 flask db migrate -m "Description des modifications"
 flask db upgrade
+```
+
+# Compiling the client
+To compile the client, run the following command:
+```bash
+cd client
+pyinstaller --onefile --noconsole --icon=logo.ico client.py
 ```
 
 

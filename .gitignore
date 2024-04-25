@@ -12,3 +12,6 @@ migrations/versions/__pycache__/
 
 *.pem
 /browsers/
+client/build/
+client/dist/
+client/client.spec
