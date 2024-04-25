@@ -29,8 +29,8 @@ authorizations = {
     }
 }
 
-api = Api(app, version='1.0', title='Pedro API Documentation',
-          description='API Documentation for Pedro, a remote administration tool.',
+api = Api(app, version='1.0', title='Pytro API Documentation',
+          description='API Documentation for Pytro, a remote administration tool.',
           authorizations=authorizations)
 
 auth_ns = api.namespace('api/v1/auth', description='Authentication operations')
