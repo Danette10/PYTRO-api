@@ -15,4 +15,4 @@ migrations/versions/__pycache__/
 client/build/
 client/dist/
 client/client.spec
-/logs/api.log
+/logs/
