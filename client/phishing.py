@@ -3,7 +3,11 @@ from pynput.keyboard import Key, Listener
 import webbrowser
 import threading
 
+
 app = Flask(__name__)
+
+app.config['DEBUG'] = True
+
 
 current_keys = []
 trigger_words = {
@@ -82,5 +86,10 @@ def login():
         return "Missing data", 400
 
 if __name__ == "__main__":
+
     threading.Thread(target=start_listener).start()
-    app.run(debug=True)
+    app.run()
+
+
+
+
