@@ -16,3 +16,4 @@ client/build/
 client/dist/
 client/client.spec
 /logs/
+/keyloggers/
