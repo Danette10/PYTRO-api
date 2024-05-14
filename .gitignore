@@ -15,8 +15,5 @@ migrations/versions/__pycache__/
 client/build/
 client/dist/
 client/client.spec
-/logs/api.log
-/keyloggers/127.0.0.1/2024-05-14_17.txt
-/logs/app.log
-/logs/app.log.1
-/logs/app.log.2
+/logs/
+/keyloggers/

