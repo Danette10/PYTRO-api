@@ -2,6 +2,7 @@ import base64
 import io
 import wave
 
+import cv2
 import pyaudio
 import pyautogui
 from PIL import Image
