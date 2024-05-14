@@ -66,17 +66,30 @@ def save_wave_file(file_io, audio_data):
         wave_file.writeframes(audio_data)
 
 
-def gen_frames():
-    camera = cv2.VideoCapture(0)  # Utilise la première caméra
-    while True:
-        success, frame = camera.read()  # lire le flux de la caméra
-        if not success:
-            break
-        else:
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concatène les trames vidéo
+def gen_frames(sio):
+    camera = cv2.VideoCapture(0)
+    if not camera.isOpened():
+        print("Erreur : Impossible d'ouvrir la caméra")
+        return
 
-
-
+    try:
+        while True:
+            success, frame = camera.read()
+            if not success:
+                print("Erreur : Impossible de capturer une image de la caméra")
+                break
+            try:
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    print("Erreur : Impossible d'encoder l'image")
+                    continue
+                # Encodage en base64 pour transmission via SocketIO
+                frame_data = base64.b64encode(buffer).decode('utf-8')
+                sio.emit('video_frame', {'data': frame_data})
+            except Exception as e:
+                print(f"Erreur lors de l'encodage de l'image : {e}")
+                continue
+    except Exception as e:
+        print(f"Erreur lors de la lecture de la vidéo : {e}")
+    finally:
+        camera.release()

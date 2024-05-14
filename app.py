@@ -1,24 +1,27 @@
 import base64
 import json
 import os
-from datetime import datetime
+import threading
+from datetime import datetime, time
 
 from flask import Flask, request, send_file, Response
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 
 from client.media_utils import gen_frames
 from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
+from queue import Queue
 
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
+video_frames = Queue()
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=10 ** 8)
 
@@ -303,10 +306,26 @@ def handle_disconnect():
         client.date_updated = datetime.now()
         db.session.commit()
 
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+@socketio.on('video_frame')
+def handle_frame(data):
+    frame_data = base64.b64decode(data['data'])
+    video_frames.put(frame_data)
+
+@app.route('/video_feed/<int:client_id>')
+def video_feed(client_id):
+    # Vous pouvez ici ajouter une authentification ou des contrôles spécifiques au client
+    return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+def stream_frames():
+    while True:
+        if not video_frames.empty():
+            frame_data = video_frames.get()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+        else:
+            time.sleep(0.05)
+
 
 if __name__ == '__main__':
     socketio.run(app, host='127.0.0.1', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
