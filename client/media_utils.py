@@ -63,3 +63,19 @@ def save_wave_file(file_io, audio_data):
         wave_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
         wave_file.setframerate(44100)
         wave_file.writeframes(audio_data)
+
+
+def gen_frames():
+    camera = cv2.VideoCapture(0)  # Utilise la première caméra
+    while True:
+        success, frame = camera.read()  # lire le flux de la caméra
+        if not success:
+            break
+        else:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concatène les trames vidéo
+
+
+

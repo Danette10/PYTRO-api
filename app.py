@@ -3,12 +3,13 @@ import json
 import os
 from datetime import datetime
 
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, Response
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
 
+from client.media_utils import gen_frames
 from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
@@ -302,6 +303,10 @@ def handle_disconnect():
         client.date_updated = datetime.now()
         db.session.commit()
 
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
     socketio.run(app, host='127.0.0.1', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
