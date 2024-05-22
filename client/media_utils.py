@@ -94,7 +94,6 @@ def get_clipboard_content(sio=None):
     try:
         print("Récupération du presse-papiers...")
         clipboard_content = pyperclip.paste()
-        print("Contenu du presse-papiers:", clipboard_content)
         if clipboard_content and sio:
             sio.emit('clipboard_response', {'clipboard_content': clipboard_content})
             print("Contenu du presse-papiers envoyé au serveur via Socket.IO.")
