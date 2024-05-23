@@ -96,6 +96,7 @@ def get_clipboard_content(sio=None):
     except Exception as e:
         print(f"Échec de la récupération du presse-papiers: {e}")
 
+
 def gen_frames(sio):
     try:
         camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
