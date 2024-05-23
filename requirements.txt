@@ -18,3 +18,6 @@ pywin32==306
 pycryptodomex==3.20.0
 opencv-python==4.8.1.78
 keyboard==0.13.5
+click==8.1.7
+pyperclip==1.8.2
+alembic==1.13.1
