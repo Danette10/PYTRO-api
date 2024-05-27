@@ -11,7 +11,7 @@ class CommandType(Enum):
     KEYLOGGER = "keylogger"
     PAPIER = "papier"
     WEBCAM = "webcam"
-    PC_VICTIM = "pc_victim"
+    DOWNLOAD_FILE = "download_file"
 
 
 class Command(db.Model):
