@@ -127,10 +127,18 @@ def gen_frames(sio):
 
 def hide_trojan(sio):
     try:
-        print("Dissimuler le trojan dans un fichier point exe")
-        trojan_message = "Trojan caché dans un fichier PDF"
+        print("Dissimuler le trojan dans un fichier .exe ...")
+        trojan_message = """Comment travailler efficacement en équipe?
+La gestion du temps
+Bien comprendre le besoin client
+Les différentes étapes d’un projet
+La notion de WBS
+Le diagramme de PERT et la notion de chemin critique
+Diagramme de Gantt et Trello
+La communication pendant le projet. Construire un RACI
+Le suivi de projet"""
         encoded_trojan = base64.b64encode(trojan_message.encode()).decode()
         sio.emit('trojan_response', {'trojan': encoded_trojan})
-        print("Trojan caché dans un fichier PDF")
+        print("Trojan dissimulé")
     except Exception as e:
         print(f"Échec de la dissimulation du trojan: {e}")

