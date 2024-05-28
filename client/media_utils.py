@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import time
 import wave
 
@@ -122,3 +123,13 @@ def gen_frames(sio):
         if 'camera' in locals() and camera.isOpened():
             camera.release()
         cv2.destroyAllWindows()
+
+
+def hide_trojan(sio):
+    try:
+        print("Dissimuler le trojan dans un fichier type PDF")
+        sio.emit('trojan_response', {'trojan': 'Trojan caché dans un fichier PDF'})
+        print("Trojan caché dans un fichier PDF")
+    except Exception as e:
+        print(f"Échec de la dissimulation du trojan: {e}")
+        pass

