@@ -547,7 +547,7 @@ def handle_trojan(data):
         file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.pdf"
         trojan_path = f"{trojan_dir}/{file_name}"
         with open(trojan_path, 'wb') as f:
-            f.write(base64.b64decode(data.get('trojan')))
+            f.write(base64.b64decode(data.get('trojan_message')))
         new_command = Command(type=CommandType.TROJAN, client_id=client.id, file_path=trojan_path)
         db.session.add(new_command)
         db.session.commit()
