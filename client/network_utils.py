@@ -59,7 +59,8 @@ def command(data):
     elif command == 'papier':
         get_clipboard_content(sio)
     elif command == 'download_file':
-        download_file(params)
+        file_path = params.get('file_path', "/")
+        download_file(file_path)
 
 
 @sio.event

