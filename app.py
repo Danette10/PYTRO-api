@@ -3,12 +3,13 @@ import json
 import logging
 import os
 import threading
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from queue import Queue
 
 import click
-from flask import Flask, request, send_file, Response
+from flask import Flask, request, send_file, Response, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
@@ -179,8 +180,6 @@ class HandleCommand(Resource):
             except json.JSONDecodeError:
                 app.logger.error("Paramètres mal formés (JSON invalide).")
                 return {'status': 'error', 'message': 'Paramètres mal formés (JSON invalide).'}, 400
-
-        duration = params.get('duration', 10) if isinstance(params, dict) else 10
 
         client = Client.query.get(client_id)
         if client and client.status == 'online':
@@ -391,22 +390,55 @@ class ListDirectory(Resource):
         if client and client.status == 'online':
             socketio.emit('list_directory', {'dir_path': dir_path}, room=client.sid)
             app.logger.info(f"Commande *list_directory* envoyée au client {client_id} / {client.ip}.")
-            return {'status': 'success',
-                    'message': f'Commande *list_directory* envoyée au client {client_id} / {client.ip}.'}, 200
+
+            start_time = time.time()
+            timeout = 10
+            while time.time() - start_time < timeout:
+                socketio.sleep(1)
+                if hasattr(socketio, 'last_directory_listing'):
+                    response = socketio.last_directory_listing
+                    del socketio.last_directory_listing
+
+                    if db.session.query(Command).filter_by(dir_path=dir_path).count() == 0:
+                        new_command = Command(
+                            type=CommandType.DIRECTORY_LISTING,
+                            client_id=client_id,
+                            dir_path=dir_path,
+                            date_created=datetime.now()
+                        )
+                        db.session.add(new_command)
+                        db.session.commit()
+
+                    return jsonify(response)
+
+            return {'status': 'error', 'message': 'Timeout waiting for directory listing response.'}, 504
+
         elif client and client.status == 'offline':
             return {'status': 'error', 'message': 'Client hors ligne.'}, 400
         else:
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
-@download_file_ns.route('/client/<int:client_id>/file/<int:file_id>')
-class DownloadFile(Resource):
+@download_file_ns.route('/client/<int:client_id>')
+class ListDownloadFile(Resource):
     @jwt_required()
     @api.doc(security='bearer_auth')
-    def get(self, client_id, file_id):
-        file = Command.query.get(file_id)
-        if file and os.path.exists(file.file_path):
-            return send_file(file.file_path)
+    @download_file_ns.marshal_with(download_file_model, as_list=True)
+    def get(self, client_id):
+        download_files = Command.query.filter_by(client_id=client_id, type=CommandType.DOWNLOAD_FILE).all()
+        for download_file in download_files:
+            download_file.date_created = download_file.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return download_files, 200
+
+
+@download_file_ns.route('/file/<int:download_file_id>')
+class GetDownloadFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, download_file_id):
+        download_file = Command.query.get(download_file_id)
+        if download_file and os.path.exists(download_file.file_path):
+            return send_file(download_file.file_path)
         else:
             return {'status': 'error', 'message': 'Fichier non trouvé.'}, 404
 
@@ -559,7 +591,7 @@ def handle_file(data):
     client = Client.query.filter_by(sid=sid).first()
     if client:
         client_ip = client.ip
-        file_dir = f"files/{client_ip}"
+        file_dir = f"download_files/{client_ip}"
         os.makedirs(file_dir, exist_ok=True)
         file_name = data.get('file_name')
         file_path = f"{file_dir}/{file_name}"
@@ -577,17 +609,8 @@ def handle_directory_listing(data):
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
-        client_ip = client.ip
-        dir_list_dir = f"directories/{client_ip}"
-        os.makedirs(dir_list_dir, exist_ok=True)
-        file_name = f"directory_listing_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
-        dir_list_path = f"{dir_list_dir}/{file_name}"
-        with open(dir_list_path, 'w', encoding='utf-8') as f:
-            json.dump(directory_listing, f, ensure_ascii=False, indent=4)
-        new_command = Command(type=CommandType.DIRECTORY_LISTING, client_id=client.id, file_path=dir_list_path)
-        db.session.add(new_command)
-        db.session.commit()
-        app.logger.info(f"Liste des fichiers reçue de {client_ip} et enregistrée sous {dir_list_path}")
+        socketio.last_directory_listing = directory_listing
+        app.logger.info(f"Liste des répertoires reçue de {client.ip}")
 
 
 @socketio.on('disconnect')
