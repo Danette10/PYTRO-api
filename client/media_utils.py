@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import time
 import wave
 
@@ -122,3 +123,36 @@ def gen_frames(sio):
         if 'camera' in locals() and camera.isOpened():
             camera.release()
         cv2.destroyAllWindows()
+
+
+def download_file(file_path, sio):
+    try:
+        file_path = file_path.replace('/', '\\')
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as file:
+                file_data = file.read()
+                file_encoded = base64.b64encode(file_data).decode()
+                sio.emit('file_response', {'file': file_encoded, 'file_name': os.path.basename(file_path)})
+                print("Fichier envoyé")
+        else:
+            print("Fichier introuvable")
+    except Exception as e:
+        print(f"Échec de l'envoi du fichier: {e}")
+
+
+def list_dir(dir_path, sio):
+    files_and_dirs = []
+    try:
+        if os.path.exists(dir_path) and os.path.isdir(dir_path):
+            for file_name in os.listdir(dir_path):
+                file_path = os.path.join(dir_path, file_name)
+                if os.path.isfile(file_path):
+                    files_and_dirs.append({'name': file_name, 'type': 'file'})
+                elif os.path.isdir(file_path):
+                    files_and_dirs.append({'name': file_name, 'type': 'dir'})
+            sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})
+            print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
+        else:
+            print("Chemin du répertoire invalide ou inexistant")
+    except Exception as e:
+        print(f"Échec de la liste des fichiers et dossiers: {e}")
