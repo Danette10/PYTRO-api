@@ -76,6 +76,11 @@ def start_stream():
 @sio.event
 def list_directory(data):
     directory = data.get('dir_path')
+    if directory is None:
+        if platform.system() == 'Windows':
+            directory = 'C:\\'
+        else:
+            directory = '/'
     list_dir(directory, sio)
 
 

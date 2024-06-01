@@ -385,8 +385,6 @@ class ListDirectory(Resource):
         data = request.json
         dir_path = data.get('dir_path')
         user_id = data.get('user_id')
-        if not dir_path:
-            return {'status': 'error', 'message': 'Chemin du répertoire non spécifié.'}, 400
 
         client = Client.query.get(client_id)
         if client and client.status == 'online':
