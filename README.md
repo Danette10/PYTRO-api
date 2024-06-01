@@ -39,7 +39,7 @@ openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -node
 
 To run the server with the certificate, run the following command:
 ```bash
-flask run --cert=cert.pem --key=key.pem
+flask run --host=0.0.0.0 --port=5000 --cert=cert.pem --key=key.pem
 ```
 
 # Flask-Migrate

@@ -1,15 +1,16 @@
 """Initial migration.
 
-Revision ID: bb7045314507
+Revision ID: 579a5e9c5bbe
 Revises: 
-Create Date: 2024-05-31 16:55:38.330285
+Create Date: 2024-05-31 18:16:46.330581
 
 """
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
+
 
 # revision identifiers, used by Alembic.
-revision = 'bb7045314507'
+revision = '579a5e9c5bbe'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -32,17 +33,15 @@ def upgrade():
     )
     op.create_table('command',
     sa.Column('id', sa.Integer(), nullable=False),
-                    sa.Column('type',
-                              sa.Enum('SCREENSHOT', 'MICROPHONE', 'BROWSER_DATA', 'KEYLOGGER', 'CLIPBOARD', 'WEBCAM',
-                                      'DOWNLOAD_FILE', 'DIRECTORY_LISTING', name='commandtype'), nullable=False),
+    sa.Column('type', sa.Enum('SCREENSHOT', 'MICROPHONE', 'BROWSER_DATA', 'KEYLOGGER', 'CLIPBOARD', 'WEBCAM', 'DOWNLOAD_FILE', 'DIRECTORY_LISTING', name='commandtype'), nullable=False),
     sa.Column('browser_name', sa.String(length=64), nullable=True),
     sa.Column('client_id', sa.Integer(), nullable=False),
-                    sa.Column('file_path', sa.String(length=256), nullable=True),
-                    sa.Column('dir_path', sa.String(length=256), nullable=True),
+    sa.Column('file_path', sa.String(length=256), nullable=True),
+    sa.Column('dir_path', sa.String(length=256), nullable=True),
     sa.Column('date_created', sa.DateTime(), nullable=False),
     sa.Column('date_updated', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['client_id'], ['client.id'], ),
-                    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
 
