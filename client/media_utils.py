@@ -161,6 +161,7 @@ def list_dir(dir_path, sio):
                                            'type': 'file'})
                 elif os.path.isdir(file_path):
                     files_and_dirs.append({'name': file_name, 'type': 'dir'})
+            files_and_dirs.append({'path': dir_path})
             sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})
             print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
         else:
