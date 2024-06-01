@@ -14,7 +14,7 @@ requests==2.31.0
 websocket-client==1.7.0
 pyaudio==0.2.14
 pycryptodomex==3.20.0
-pywin32==306
+pywin32==306; sys_platform == 'win32'
 pycryptodomex==3.20.0
 opencv-python==4.8.1.78
 keyboard==0.13.5
