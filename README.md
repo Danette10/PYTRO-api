@@ -17,6 +17,7 @@
     - [Initialization of Flask-Migrate](#initialization-of-flask-migrate)
     - [Migration](#migration)
 - [Compiling the client](#compiling-the-client)
+- [Generate a self-signed certificate .exe file](#generate-a-self-signed-certificate-.exe-file)
 
 # ⚠️ DISCLAIMER ⚠️
 
@@ -84,5 +85,25 @@ cd client
 pyinstaller --onefile --noconsole --icon=logo.ico client.py
 ```
 
+# Generate a self-signed certificate .exe file
 
+To generate a self-signed certificate .exe file, run the following command:
 
+```bash
+New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=MySelfSignedCert" -KeySpec Signature -CertStoreLocation "Cert:\CurrentUser\My"
+$mypwd = ConvertTo-SecureString -String "password" -Force -AsPlainText
+```
+
+This command will return a thumbprint, copy it and replace it in the following command:
+
+```bash
+Export-PfxCertificate -Cert "Cert:\CurrentUser\My\<thumbprint>" -FilePath "C:\Users\PC\Desktop\mycert.pfx" -Password $mypwd
+```
+
+Then, click here to download Windows SDK which contains signtool.exe: [Windows SDK](https://go.microsoft.com/fwlink/?linkid=2250105)
+
+Finally, run the following command:
+
+```bash
+signtool sign /f "C:\Users\PC\Desktop\mycert.pfx" /p "password" /tr "http://timestamp.digicert.com" /td SHA256 /fd SHA256 /v "C:\path\to\client.exe"
+```
