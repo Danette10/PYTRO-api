@@ -20,7 +20,7 @@ def add_to_startup(file_path=None):
 
     key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Run', 0,
                          winreg.KEY_SET_VALUE)
-    winreg.SetValueEx(key, 'MyAppName', 0, winreg.REG_SZ, destination_file)
+    winreg.SetValueEx(key, 'Pytro', 0, winreg.REG_SZ, destination_file)
     winreg.CloseKey(key)
 
 
