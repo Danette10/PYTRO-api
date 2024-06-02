@@ -87,6 +87,8 @@ pyinstaller --onefile --noconsole --icon=logo.ico client.py
 
 # Generate a self-signed certificate .exe file
 
+**The following commands are to be executed in PowerShell !**
+
 To generate a self-signed certificate .exe file, run the following command:
 
 ```bash
