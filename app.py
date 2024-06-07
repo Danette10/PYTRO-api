@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from queue import Queue
+from queue import Queue, Empty
 
 import click
 from flask import Flask, request, send_file, Response, jsonify
@@ -28,6 +28,7 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 video_frames = Queue()
 battery_status = {}
+stop_streaming = False
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=50 ** 8)
 
@@ -370,6 +371,21 @@ class GetWebcamLink(Resource):
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
+@webcam_ns.route('/stop/<int:client_id>')
+class StopWebcam(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self, client_id):
+        client = Client.query.get(client_id)
+        if not client:
+            return {'status': 'error', 'message': 'Client non trouvé.'}, 404
+        if client.status == 'offline':
+            return {'status': 'error', 'message': 'Client hors ligne.'}, 400
+
+        socketio.emit('stop_stream', room=client.sid)
+        return {'status': 'success', 'message': 'Commande pour arrêter la webcam envoyée.'}, 200
+
+
 @webcam_ns.route('/<int:client_id>')
 class StreamWebcam(Resource):
     def get(self, client_id):
@@ -385,6 +401,8 @@ class StreamWebcam(Resource):
             return {'status': 'error', 'message': 'La caméra ne peut pas être activée car la batterie est inférieure '
                                                   'à 20% et non branchée.'}, 400
 
+        global stop_streaming
+        stop_streaming = False
         socketio.emit('start_stream', room=client.sid)
         threading.Thread(target=gen_frames, args=(socketio,)).start()
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -614,6 +632,12 @@ def handle_frame(data):
     video_frames.put(frame_data)
 
 
+@socketio.on('stop_stream')
+def handle_stop_stream():
+    global stop_streaming
+    stop_streaming = True
+    app.logger.info("Arrêt du streaming demandé par le client.")
+
 @socketio.on('file_response')
 def handle_file(data):
     file_data = base64.b64decode(data.get('file'))
@@ -656,10 +680,14 @@ def handle_disconnect():
 
 
 def stream_frames():
-    while True:
-        frame_data = video_frames.get()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+    global stop_streaming
+    while not stop_streaming:
+        try:
+            frame_data = video_frames.get(timeout=1)
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+        except Empty:
+            continue
 
 
 setup_logging()

