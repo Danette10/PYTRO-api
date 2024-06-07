@@ -21,3 +21,4 @@ keyboard==0.13.5
 click==8.1.7
 pyperclip==1.8.2
 alembic==1.13.1
+psutil==5.9.8

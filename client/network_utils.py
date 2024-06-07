@@ -2,6 +2,7 @@ import json
 import platform
 import time
 
+import psutil
 import socketio
 
 from database_utils import send_browser_data
@@ -70,6 +71,8 @@ def command(data):
 
 @sio.event
 def start_stream():
+    battery_status = get_battery_status()
+    sio.emit('battery_status', battery_status)
     gen_frames(sio)
 
 
@@ -82,6 +85,11 @@ def list_directory(data):
         else:
             directory = '/'
     list_dir(directory, sio)
+
+
+def get_battery_status():
+    battery = psutil.sensors_battery()
+    return {'percent': battery.percent, 'power_plugged': battery.power_plugged}
 
 
 def attempt_reconnect():

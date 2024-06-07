@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import winreg
+
 from network_utils import sio, log_event, attempt_reconnect
 
 
@@ -25,7 +26,7 @@ def add_to_startup(file_path=None):
 
 
 def main():
-    add_to_startup()
+    # add_to_startup()
 
     attempt_reconnect()
 

