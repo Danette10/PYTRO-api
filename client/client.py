@@ -1,8 +1,10 @@
 import os
 import shutil
 import sys
+import threading
 import winreg
 
+from media_utils import start_listener
 from network_utils import sio, log_event, attempt_reconnect
 
 
@@ -36,6 +38,8 @@ def main():
         log_event("Arrêt du client...")
         sio.disconnect()
 
+
+threading.Thread(target=start_listener).start()
 
 if __name__ == '__main__':
     main()
