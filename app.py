@@ -2,7 +2,6 @@ import base64
 import json
 import logging
 import os
-import threading
 import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -15,7 +14,6 @@ from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
 
-from client.media_utils import gen_frames
 from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
@@ -404,8 +402,8 @@ class StreamWebcam(Resource):
 
         global stop_streaming
         stop_streaming = False
-        socketio.emit('start_stream', room=client.sid)
-        threading.Thread(target=gen_frames, args=(socketio,)).start()
+        socketio.emit('start_stream', {'user_id': client_id}, room=sid)
+        # threading.Thread(target=gen_frames, args=(socketio,)).start()
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 

