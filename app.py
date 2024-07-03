@@ -2,20 +2,19 @@ import base64
 import json
 import logging
 import os
-import threading
 import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from queue import Queue, Empty
 
 import click
+import eventlet.wsgi
 from flask import Flask, request, send_file, Response, jsonify, render_template, redirect, url_for
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
 
-from client.media_utils import gen_frames
 from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
@@ -404,7 +403,6 @@ class StreamWebcam(Resource):
         global stop_streaming
         stop_streaming = False
         socketio.emit('start_stream', room=client.sid)
-        threading.Thread(target=gen_frames, args=(socketio,)).start()
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
@@ -638,6 +636,7 @@ def handle_stop_stream():
     stop_streaming = True
     app.logger.info("Arrêt du streaming demandé par le client.")
 
+
 @socketio.on('file_response')
 def handle_file(data):
     file_data = base64.b64decode(data.get('file'))
@@ -735,4 +734,7 @@ def login():
 
 setup_logging()
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
+    eventlet.wsgi.server(eventlet.wrap_ssl(eventlet.listen(('0.0.0.0', 5000)),
+                                           certfile='cert.pem',
+                                           keyfile='key.pem',
+                                           server_side=True), app)
