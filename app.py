@@ -474,7 +474,7 @@ class GetDownloadFile(Resource):
             return {'status': 'error', 'message': 'Fichier non trouvé.'}, 404
 
 
-@socketio.on('connect')
+@socketio.on('connect', namespace='/')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     app.logger.info(f"Client connecté: {client_ip}")

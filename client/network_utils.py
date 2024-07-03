@@ -80,7 +80,7 @@ def attempt_reconnect():
     while not sio.connected:
         try:
             log_event("Tentative de reconnexion...")
-            sio.connect('https://127.0.0.1:5000', transports=['websocket', 'polling'])
+            sio.connect('https://127.0.0.1:5000', transports=['websocket', 'polling'], namespaces=['/'])
             time.sleep(5)
         except socketio.exceptions.ConnectionError as e:
             log_event("Echec de la reconnexion. Nouvelle tentative dans 5 secondes...")
