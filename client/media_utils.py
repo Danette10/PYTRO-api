@@ -113,7 +113,7 @@ def get_clipboard_content(callback, user_id=None):
 
 def gen_frames(sio, user_id):
     try:
-        camera = cv2.VideoCapture(0, cv2.CAP_ANY)
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Utilisez DirectShow au lieu de MSMF
         if not camera.isOpened():
             raise ValueError("Failed to open webcam")
 

@@ -399,6 +399,7 @@ class StreamWebcam(Resource):
             return {'status': 'error', 'message': 'La caméra ne peut pas être activée car la batterie est inférieure '
                                                   'à 20% et non branchée.'}, 400
 
+        app.logger.info(f"Envoi de l'événement start_stream pour l'utilisateur {client_id}.")
         socketio.emit('start_stream', {'user_id': client_id}, room=client.sid)
         return Response(stream_frames(client_id), mimetype='multipart/x-mixed-replace; boundary=frame')
 
@@ -630,12 +631,22 @@ def handle_frame(data):
     video_frames[user_id].put(frame_data)
 
 
+@socketio.on('start_stream')
+def handle_start_stream(data):
+    user_id = data.get('user_id')
+    app.logger.info(f"Démarrage du streaming pour l'utilisateur {user_id}.")
+    if user_id not in video_frames:
+        video_frames[user_id] = Queue()
+    else:
+        app.logger.info(f"L'utilisateur {user_id} est déjà dans video_frames.")
+
+
 @socketio.on('stop_stream')
 def handle_stop_stream(data):
     user_id = data.get('user_id')
+    app.logger.info(f"Arrêt du streaming pour l'utilisateur {user_id}.")
     if user_id in video_frames:
         del video_frames[user_id]
-    app.logger.info(f"Arrêt du streaming demandé pour l'utilisateur {user_id}.")
 
 
 @socketio.on('file_response')
@@ -680,13 +691,22 @@ def handle_disconnect():
 
 
 def stream_frames(user_id):
+    # Attendez un court moment pour vous assurer que l'utilisateur est ajouté à video_frames
+    time.sleep(1)
+
     while True:
         try:
+            if user_id not in video_frames:
+                app.logger.error(f"Utilisateur {user_id} non trouvé dans video_frames.")
+                break
             frame_data = video_frames[user_id].get(timeout=1)
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
         except Empty:
             continue
+        except Exception as e:
+            app.logger.error(f"Erreur dans stream_frames: {e}")
+            break
 
 
 @app.route('/')
