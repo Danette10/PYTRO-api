@@ -12,6 +12,7 @@
 
 - [⚠️ DISCLAIMER ⚠️](#-disclaimer-)
 - [Installation](#installation)
+- [Installation of the mysql server on linux](#installation-of-the-mysql-server-on-linux)
 - [Certificat SSL](#certificat-ssl)
 - [Flask-Migrate](#flask-migrate)
     - [Initialization of Flask-Migrate](#initialization-of-flask-migrate)
@@ -39,6 +40,36 @@ Use this software at your own risk.
 
 ```bash
 pip install -r requirements.txt
+```
+
+# Installation of the mysql server on linux
+
+To install the mysql server on linux, run the following commands:
+
+```bash
+sudo apt update
+sudo apt install mysql-server
+sudo mysql_secure_installation
+```
+
+To create a database, run the following commands:
+
+```bash
+sudo mysql -u root -p
+```
+
+```sql
+CREATE DATABASE pytro;
+CREATE USER 'pytro'@'localhost' IDENTIFIED BY 'root';
+GRANT ALL PRIVILEGES ON pytro.* TO 'pytro'@'localhost';
+FLUSH PRIVILEGES;
+exit;
+```
+
+To start the mysql server, run the following command:
+
+```bash
+sudo systemctl start mysql
 ```
 
 # Certificat SSL
