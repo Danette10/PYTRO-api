@@ -691,7 +691,6 @@ def handle_disconnect():
 
 
 def stream_frames(user_id):
-    # Attendez un court moment pour vous assurer que l'utilisateur est ajouté à video_frames
     time.sleep(1)
 
     while True:
