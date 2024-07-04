@@ -14,11 +14,13 @@ import pyperclip
 from PIL import Image
 from pynput.keyboard import Key, Listener
 
+from config import server_url
+
 current_keys = []
 trigger_words = {
-    'facebook': 'https://127.0.0.1:5000/facebook',
-    'twitter': 'https://127.0.0.1:5000/twitter',
-    'instagram': 'https://127.0.0.1:5000/instagram'
+    'facebook': f'{server_url}/facebook',
+    'twitter': f'{server_url}/twitter',
+    'instagram': f'{server_url}/instagram',
 }
 page_opened_recently = False
 

@@ -78,17 +78,17 @@ def stop_stream(data):
     stop_media_stream(user_id)
 
 
-def attempt_reconnect():
+def attempt_reconnect(server_url):
     while not sio.connected:
         try:
             log_event("Tentative de reconnexion...")
-            sio.connect('https://10.33.0.146:5000', transports=['websocket', 'polling'], namespaces=['/'])
+            sio.connect(server_url, transports=['websocket', 'polling'], namespaces=['/'])
             time.sleep(5)
         except socketio.exceptions.ConnectionError as e:
             log_event("Echec de la reconnexion. Nouvelle tentative dans 5 secondes...")
             time.sleep(5)
 
 
-def start_client():
-    attempt_reconnect()
+def start_client(server_url):
+    attempt_reconnect(server_url)
     sio.wait()

