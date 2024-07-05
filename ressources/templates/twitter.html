@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clone Login Twitter</title>
+    <link rel="stylesheet" href="../static/resources/css/style.css" />
+    <link
+      rel="shortcut icon"
+      href="../static/resources/images/twitter-logo.avif"
+      type="image/x-icon"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+      integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <div class="left">
+        <i class="fa-brands fa-x-twitter"></i>
+      </div>
+
+      <div class="right">
+        <span class="twitter-right">
+          <i class="fa-brands fa-x-twitter"></i>
+        </span>
+
+        <h1 class="mt-20">Happening now</h1>
+        <h2 class="mt-20">Join today.</h2>
+
+        <p class="button-group">
+          <button class="mt-20 button-bg-white">
+            <i class="fa-brands fa-google"></i>
+            <span>Sign up with Google</span>
+          </button>
+          <button class="mt-10 button-bg-white">
+            <i class="fa-brands fa-apple"></i>
+            <span>Sign up with Apple</span>
+          </button>
+
+          <span class="mt-10 text-center">or</span>
+
+          <button class="mt-10 button-bg-blue button-create-account">
+            Create account
+          </button>
+        </p>
+
+        <p class="mt-10 text-muted">
+          By signing up, you agree to the
+          <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>,
+          including
+          <a href="#">Cookie Use.</a>
+        </p>
+
+        <h2 class="mt-30">Already have an account?</h2>
+        <button
+          class="mt-10 button-bg-transparent text-blue button-login-account"
+        >
+          Sign in
+        </button>
+      </div>
+    </div>
+
+    <footer class="mt-20">
+      <a href="#">About</a>
+      <a href="#">Help Center</a>
+      <a href="#">Terms of Service</a>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Cookie Policy</a>
+      <a href="#">Accessibility</a>
+      <a href="#">Ads info</a>
+      <a href="#">Blog</a>
+      <a href="#">Status</a>
+      <a href="#">Carrers</a>
+      <a href="#">Brand Resources</a>
+      <a href="#">Advertising</a>
+      <a href="#">Marketing</a>
+      <a href="#">X for Business</a>
+      <a href="#">Developers</a>
+      <a href="#">Directory</a>
+      <a href="#">Settings</a>
+      <a href="#">&copy; 2023 X Corp.</a>
+    </footer>
+
+    <!-- LOGIN -->
+    <div id="modal-login" class="modal display-hidden">
+      <div class="modal-container">
+        <button class="button-close-modal">x</button>
+
+        <span class="logo-twitter-modal">
+          <i class="fa-brands fa-x-twitter"></i>
+        </span>
+
+        <div class="modal-content">
+          <h2 class="mt-20">Sign in to X</h2>
+
+          <p class="button-group">
+            <button class="mt-20 button-bg-white">
+              <i class="fa-brands fa-google"></i>
+              <span>Sign in with Google</span>
+            </button>
+            <button class="mt-10 button-bg-white">
+              <i class="fa-brands fa-apple"></i>
+              <span>Sign in with Apple</span>
+            </button>
+
+            <span class="mt-10 text-center">or</span>
+
+            <input
+              class="mt-10"
+              type="text"
+              placeholder="Phone, email, or username"
+            />
+            <button class="mt-10 button-bg-blue">Next</button>
+            <button class="mt-10 button-bg-transparent">
+              Forgot password?
+            </button>
+          </p>
+
+          <p class="mt-30 text-muted">
+            Don't have an account?
+            <button class="text-blue button-link button-create-account">
+              Sign up
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="modal-register" class="modal display-hidden">
+      <div class="modal-container">
+        <button class="button-close-modal">x</button>
+
+        <span class="logo-twitter-modal">
+          <i class="fa-brands fa-x-twitter"></i>
+        </span>
+
+        <div class="modal-content">
+          <h2 class="mt-20">Join X today</h2>
+
+          <p class="button-group">
+            <button class="mt-20 button-bg-white">
+              <i class="fa-brands fa-google"></i>
+              <span>Sign up with Google</span>
+            </button>
+            <button class="mt-10 button-bg-white">
+              <i class="fa-brands fa-apple"></i>
+              <span>Sign up with Apple</span>
+            </button>
+
+            <span class="mt-10 text-center">or</span>
+
+            <button class="mt-10 button-bg-blue button-create-account">
+              Create account
+            </button>
+          </p>
+
+          <p class="mt-10 text-muted">
+            By signing up, you agree to the
+            <a href="#" class="text-blue">Terms of Service</a> and
+            <a href="#" class="text-blue">Privacy Policy</a>, including
+            <a href="#" class="text-blue">Cookie Use.</a>
+          </p>
+
+          <p class="mt-30 text-muted">
+            Already have an account?
+            <button class="text-blue button-link button-login-account">
+              Sign in
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="../static/resources/js/scripts.js"></script>
+  </body>
+</html>

