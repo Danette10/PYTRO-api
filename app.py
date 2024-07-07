@@ -116,6 +116,31 @@ class RemoveColorFilter(logging.Filter):
             record.msg = click.unstyle(record.msg)
         return True
 
+class CustomRotatingFileHandler(RotatingFileHandler):
+    def doRollover(self):
+        """
+        Do a rollover, as described in __init__().
+        """
+        if self.stream:
+            self.stream.close()
+            self.stream = None
+
+        if self.backupCount > 0:
+            for i in range(self.backupCount - 1, 0, -1):
+                sfn = f"{self.baseFilename}.{i}"
+                dfn = f"{self.baseFilename}.{i + 1}"
+                if os.path.exists(sfn):
+                    if os.path.exists(dfn):
+                        os.remove(dfn)
+                    os.rename(sfn, dfn)
+            dfn = f"{self.baseFilename}.1"
+            if os.path.exists(dfn):
+                os.remove(dfn)
+            self.rotate(self.baseFilename, dfn)
+
+        if not self.delay:
+            self.stream = self._open()
+
 
 def setup_logging():
     log_directory = os.path.join(os.getcwd(), 'logs')
@@ -126,7 +151,7 @@ def setup_logging():
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     date_format = '%d/%m/%Y %H:%M:%S'
 
-    file_handler = RotatingFileHandler(log_file, maxBytes=10000, backupCount=10)
+    file_handler = CustomRotatingFileHandler(log_file, maxBytes=100000, backupCount=10)
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
     file_handler.addFilter(RemoveColorFilter())

