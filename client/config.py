@@ -1,6 +1,8 @@
 import os
 
-server_url = 'https://10.33.1.51:5000'
+# Configuration du serveur
+server_url = 'https://127.0.0.1:5000'
+
 # Configuration des chemins et des requêtes pour les navigateurs
 appdata = os.getenv('LOCALAPPDATA')
 browsers = {

