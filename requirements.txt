@@ -16,7 +16,7 @@ pyaudio==0.2.14
 pycryptodomex==3.20.0
 pywin32==306; sys_platform == 'win32'
 pycryptodomex==3.20.0
-opencv-python==4.10.0.82
+opencv-python==4.10.0.84
 keyboard==0.13.5
 click==8.1.7
 pyperclip==1.8.2
