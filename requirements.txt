@@ -21,7 +21,7 @@ keyboard==0.13.5
 click==8.1.7
 pyperclip==1.8.2
 alembic==1.13.1
-psutil==5.9.8
+psutil==6.0.0
 pip~=24.0
 attrs~=23.2.0
 Jinja2~=3.1.3
