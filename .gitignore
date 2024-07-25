@@ -7,8 +7,7 @@ audio
 __pycache__/
 config/.env
 
-migrations/__pycache__/
-migrations/versions/__pycache__/
+migrations/*
 
 *.pem
 /browsers/
