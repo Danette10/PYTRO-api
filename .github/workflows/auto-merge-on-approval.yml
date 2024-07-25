@@ -21,13 +21,14 @@ jobs:
             echo "Pull request is not approved. Exiting."
             exit 0
           fi
-          
+          echo "approved=true" >> $GITHUB_ENV
+
       - name: 'Merge pull request'
-        if: always()
+        if: env.approved == 'true'
         uses: actions/github-script@v6
         with:
           script: |
-            const pull_request_number = process.env.GITHUB_REF.split('/').pop();
+            const pull_request_number = context.payload.pull_request.number;
             await github.pulls.merge({
               owner: context.repo.owner,
               repo: context.repo.repo,
