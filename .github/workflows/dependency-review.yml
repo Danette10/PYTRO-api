@@ -27,9 +27,17 @@ jobs:
         with:
           script: |
             const pull_request_number = process.env.GITHUB_REF.split('/').pop();
-            await github.pulls.merge({
+            const { data: pr } = await github.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pull_request_number,
-              merge_method: 'squash'
             });
+
+            if (pr.user.login === 'dependabot[bot]') {
+              await github.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pull_request_number,
+                merge_method: 'squash'
+              });
+            }
