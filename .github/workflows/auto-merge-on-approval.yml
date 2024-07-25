@@ -1,0 +1,36 @@
+name: 'Auto-merge on Approval'
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+
+      - name: 'Check if approved'
+        id: check_approval
+        run: |
+          if [[ "${{ github.event.review.state }}" != "approved" ]]; then
+            echo "Pull request is not approved. Exiting."
+            exit 0
+          fi
+          
+      - name: 'Merge pull request'
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pull_request_number = process.env.GITHUB_REF.split('/').pop();
+            await github.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pull_request_number,
+              merge_method: 'squash'
+            });
