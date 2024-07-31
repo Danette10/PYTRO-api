@@ -1,5 +1,3 @@
-# PYTRO API Documentation
-
 Welcome to the detailed documentation for PYTRO-API. This documentation provides additional details, tutorials, and usage examples beyond what's provided in the README.
 
 ## API Reference
@@ -23,7 +21,7 @@ Welcome to the detailed documentation for PYTRO-API. This documentation provides
 #### Generate JWT Token
 
 ```http
-  POST /api/v1/auth/
+POST /api/v1/auth/
 ```
 
 #### Request Body
