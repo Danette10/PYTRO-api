@@ -4,24 +4,19 @@ Welcome to the detailed documentation for PYTRO-API. This documentation provides
 
 ## API Reference
 
-<input type="text" id="searchInput" onkeyup="searchFunction()" placeholder="Search for endpoints..">
-
 ## Table of Contents
 
-<ul id="myUL">
-  <li><a href="#api-reference">API Reference</a></li>
-  <li><a href="#authentication">Authentication</a></li>
-  <li><a href="#command-operations">Command Operations</a></li>
-  <li><a href="#client-operations">Client Operations</a></li>
-  <li><a href="#screenshot-operations">Screenshot Operations</a></li>
-  <li><a href="#microphone-operations">Microphone Operations</a></li>
-  <li><a href="#browser-data-operations">Browser Data Operations</a></li>
-  <li><a href="#keylogger-operations">Keylogger Operations</a></li>
-  <li><a href="#clipboard-operations">Clipboard Operations</a></li>
-  <li><a href="#webcam-operations">Webcam Operations</a></li>
-  <li><a href="#directory-operations">Directory Operations</a></li>
-  <li><a href="#download-file-operations">Download File Operations</a></li>
-</ul>
+- [Authentication](#authentication)
+- [Command Operations](#command-operations)
+- [Client Operations](#client-operations)
+- [Screenshot Operations](#screenshot-operations)
+- [Microphone Operations](#microphone-operations)
+- [Browser Data Operations](#browser-data-operations)
+- [Keylogger Operations](#keylogger-operations)
+- [Clipboard Operations](#clipboard-operations)
+- [Webcam Operations](#webcam-operations)
+- [Directory Operations](#directory-operations)
+- [Download File Operations](#download-file-operations)
 
 ### Authentication
 
@@ -253,25 +248,3 @@ GET /api/v1/download/file/{download_file_id}
 | Parameter | Type     | Description                       |
 | :-------- | :------- | :-------------------------------- |
 | `download_file_id`      | `int` | **Required**. ID of the downloaded file |
-
-
-<script>
-function searchFunction() {
-  let input, filter, ul, li, a, i, txtValue;
-  input = document.getElementById('searchInput');
-  filter = input.value.toUpperCase();
-  ul = document.getElementById("myUL");
-  li = ul.getElementsByTagName('li');
-
-  for (i = 0; i < li.length; i++) {
-    a = li[i].getElementsByTagName("a")[0];
-    txtValue = a.textContent || a.innerText;
-    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-      li[i].style.display = "";
-    } else {
-      li[i].style.display = "none";
-    }
-  }
-}
-</script>
-
