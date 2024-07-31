@@ -4,7 +4,7 @@
 
 ## Documentation
 
-- [📚 PYTRO Documentation](https://danette10.github.io/PYTRO-api/)
+- [📚 PYTRO Documentation](https://danette.gitbook.io/pytro-api-documentation)
 
 ## Join Us on Discord
 
