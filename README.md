@@ -1,12 +1,10 @@
-# PYTRO
-
 <p align="center">
   <img src="logo.png" alt="PYTRO logo"/>
 </p>
 
 ## Documentation
 
-- [📚 http://127.0.0.1:5000/](http://127.0.0.1:5000)
+- [📚 PYTRO Documentation](https://your-username.github.io/your-repo)
 
 ## Join Us on Discord
 
@@ -16,19 +14,22 @@ To discuss, get help, or test our project, join our Discord server by clicking t
   <img src="https://img.shields.io/badge/Join%20us%20on-Discord-7289da?style=for-the-badge&logo=discord&logoColor=white" alt="Join us on Discord"/>
 </a>
 
-# Summary
+## Table of Contents
 
 - [⚠️ DISCLAIMER ⚠️](#-disclaimer-)
+- [Features](#features)
+- [Requirements](#requirements)
 - [Installation](#installation)
-- [Installation of the mysql server on linux](#installation-of-the-mysql-server-on-linux)
-- [Certificat SSL](#certificat-ssl)
-- [Flask-Migrate](#flask-migrate)
-    - [Initialization of Flask-Migrate](#initialization-of-flask-migrate)
-    - [Migration](#migration)
-- [Compiling the client](#compiling-the-client)
-- [Generate a self-signed certificate .exe file](#generate-a-self-signed-certificate-.exe-file)
+    - [SSL Certificate](#ssl-certificate)
+    - [Flask-Migrate](#flask-migrate)
+        - [Initialization of Flask-Migrate](#initialization-of-flask-migrate)
+        - [Migration](#migration)
+    - [Compiling the Client](#compiling-the-client)
+    - [Generating a Self-Signed Certificate .exe File](#generating-a-self-signed-certificate-exe-file)
+- [Contribution](#contribution)
+- [License](#license)
 
-# ⚠️ DISCLAIMER ⚠️
+## ⚠️ DISCLAIMER ⚠️
 
 This project is developed for educational purposes only. The aim is to understand and demonstrate the security risks
 associated with RAT (Remote Access Trojan) software and to encourage the development of effective countermeasures. The
@@ -44,43 +45,25 @@ security research within legal boundaries and with proper authorization.
 
 Use this software at your own risk.
 
+## Features
+
+- **Security Risk Demonstration**: Showcases the threats posed by RATs.
+- **Cybersecurity Awareness**: Educates users on good security practices.
+- **RESTful API**: Provides an easy-to-use interface for integration and testing.
+
+## Requirements
+
+- Python 3.12+
+- MySQL
+- OpenSSL
+
 # Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-# Installation of the mysql server on linux
-
-To install the mysql server on linux, run the following commands:
-
-```bash
-sudo apt update
-sudo apt install mysql-server
-sudo mysql_secure_installation
-```
-
-To create a database, run the following commands:
-
-```bash
-sudo mysql -u root -p
-```
-
-```sql
-CREATE DATABASE pytro;
-CREATE USER 'pytro'@'localhost' IDENTIFIED BY 'root';
-GRANT ALL PRIVILEGES ON pytro.* TO 'pytro'@'localhost';
-FLUSH PRIVILEGES;
-exit;
-```
-
-To start the mysql server, run the following command:
-
-```bash
-sudo systemctl start mysql
-```
-
-# Certificat SSL
+# SSL Certificate
 
 To generate a self-signed certificate, run the following commands:
 
@@ -124,7 +107,7 @@ cd client
 pyinstaller --onefile --noconsole --icon=logo.ico client.py
 ```
 
-# Generate a self-signed certificate .exe file
+# Generating a Self-Signed Certificate .exe File
 
 **The following commands are to be executed in PowerShell !**
 
@@ -148,3 +131,9 @@ Finally, run the following command:
 ```bash
 signtool sign /f "C:\Users\PC\Desktop\mycert.pfx" /p "password" /tr "http://timestamp.digicert.com" /td SHA256 /fd SHA256 /v "C:\path\to\client.exe"
 ```
+
+# Contribution
+For contribution guidelines, please see [CONTRIBUTING.md](https://github.com/Danette10/PYTRO-api/blob/develop/.github/CONTRIBUTING.md).
+
+# License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
