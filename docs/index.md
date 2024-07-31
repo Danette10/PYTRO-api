@@ -4,20 +4,29 @@ Welcome to the detailed documentation for PYTRO-API. This documentation provides
 
 ## API Reference
 
-#### Get all items
+### Authentication
+
+#### Generate JWT Token
 
 ```http
-  GET /api/items
+  POST /api/v1/auth/
 ```
 
-| Parameter | Type     | Description                |
-| :-------- | :------- | :------------------------- |
-| `api_key` | `string` | **Required**. Your API key |
+#### Request Body
+```json
+{
+  "secret_key": "string"
+}
+```
+
+#### Responses
+- <span style="color:green;">200 OK - Returns the JWT token</span>
+- <span style="color:red;">401 Unauthorized - Returns "Wrong secret key"</span>
 
 #### Get item
 
 ```http
-  GET /api/items/${id}
+
 ```
 
 | Parameter | Type     | Description                       |
