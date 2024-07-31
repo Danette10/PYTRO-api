@@ -133,7 +133,7 @@ signtool sign /f "C:\Users\PC\Desktop\mycert.pfx" /p "password" /tr "http://time
 ```
 
 # Contribution
-For contribution guidelines, please see [CONTRIBUTING.md](https://github.com/Danette10/PYTRO-api/blob/develop/.github/CONTRIBUTING.md).
+For contribution guidelines, please see [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 # License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
