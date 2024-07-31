@@ -21,6 +21,7 @@ Welcome to the detailed documentation for PYTRO-API. This documentation provides
 #### Generate JWT Token
 
 ```http
+
 POST /api/v1/auth/
 ```
 
