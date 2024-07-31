@@ -2,20 +2,29 @@
 
 Welcome to the detailed documentation for PYTRO-API. This documentation provides additional details, tutorials, and usage examples beyond what's provided in the README.
 
-## Table of Contents
+## API Reference
 
-- [Introduction](#introduction)
-- [API Endpoints](#api-endpoints)
-    - [GET /api/v1/resources](#get-apiv1resources)
-    - [POST /api/v1/resources](#post-apiv1resources)
-    - [GET /api/v1/resources/{id}](#get-apiv1resourcesid)
-    - [PUT /api/v1/resources/{id}](#put-apiv1resourcesid)
-    - [DELETE /api/v1/resources/{id}](#delete-apiv1resourcesid)
-- [Contribution](#contribution)
-- [License](#license)
+#### Get all items
 
-## Introduction
+```http
+  GET /api/items
+```
 
-For an overview of the project, prerequisites, basic installation, and configuration, please refer to the [main README](../README.md).
+| Parameter | Type     | Description                |
+| :-------- | :------- | :------------------------- |
+| `api_key` | `string` | **Required**. Your API key |
 
-## API Endpoints
+#### Get item
+
+```http
+  GET /api/items/${id}
+```
+
+| Parameter | Type     | Description                       |
+| :-------- | :------- | :-------------------------------- |
+| `id`      | `string` | **Required**. Id of item to fetch |
+
+#### add(num1, num2)
+
+Takes two numbers and returns the sum.
+
