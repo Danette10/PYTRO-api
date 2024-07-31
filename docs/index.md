@@ -41,6 +41,7 @@ POST /api/v1/command/{client_id}
 ```
 
 #### Request Parameters
+
 | Parameter | Type     | Description                       |
 | :-------- | :------- | :-------------------------------- |
 | `client_id`      | `int` | **Required**. ID of the client |
