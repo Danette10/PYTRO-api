@@ -7,7 +7,7 @@ Flask-SQLAlchemy==3.1.1
 PyAutoGUI==0.9.54
 Pillow==10.4.0
 python-dotenv==1.0.1
-python-socketio==5.11.3
+python-socketio==5.11.4
 SQLAlchemy==2.0.32
 PyMySQL==1.1.1
 requests==2.32.3
