@@ -30,4 +30,4 @@ pynput==1.7.7
 Wave==0.0.2
 alembic~=1.13.2
 pynput==1.7.7
-eventlet==0.36.1
+eventlet==0.37.0
